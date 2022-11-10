@@ -1,0 +1,53 @@
+// database
+datasource db {
+    provider = "postgresql"
+    url      = "file:database.db"
+}
+
+// generator
+generator client {
+    provider             = "prisma-client-py"
+    recursive_type_depth = 5
+}
+
+// enums
+enum Role {
+    User
+    Creator
+    Admin
+}
+
+enum Importance {
+    High
+    Medium
+    Low
+}
+
+// data models
+model User {
+    id         Int       @id @default(autoincrement())
+    email      String
+    name       String
+    role       Role
+    places     Place[]
+    Object3D   Object3D? @relation(fields: [object3DId], references: [id])
+    object3DId Int?
+}
+
+model Place {
+    id         Int        @id @default(autoincrement())
+    name       String
+    importance Importance
+    story      String
+    uri        String
+    User       User?      @relation(fields: [userId], references: [id])
+    userId     Int?
+    Object3D   Object3D[]
+}
+
+model Object3D {
+    id       Int    @id @default(autoincrement())
+    location Place  @relation(fields: [placeId], references: [id])
+    placeId  Int
+    found_by User[]
+}
