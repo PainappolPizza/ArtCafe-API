@@ -51,4 +51,5 @@ model Object3D {
     location Place  @relation(fields: [placeId], references: [id])
     placeId  Int
     found_by User[]
+    data     Bytes
 }
