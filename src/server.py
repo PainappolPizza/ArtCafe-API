@@ -30,6 +30,7 @@ class LoginModel(BaseModel):
 async def login(Credentials: LoginModel):
     """
     Login User and return JWT token
+    Login User and return JWT token
     """
     # implement login in future
     valid = False
@@ -42,9 +43,18 @@ async def login(Credentials: LoginModel):
         )
 
 
+# create RegisterModel from Prisma user model
+class RegisterModel(BaseModel):
+    email: str
+    password: str
+    name: str
+    role: str
+
+
 @app.post("/api/register", tags=["Authentication"])
 async def register():
     """
+    Register User and return JWT token
     Register User and return JWT token
     """
     # implement register in future
@@ -58,9 +68,15 @@ async def register():
         )
 
 
+class LogoutModel(BaseModel):
+    id: str
+    token: str
+
+
 @app.post("/api/logout", tags=["Authentication"])
 async def logout():
     """
+    Logout User, revoke JWT token
     Logout User, revoke JWT token
     """
     # implement logout in future
@@ -74,9 +90,18 @@ async def logout():
         )
 
 
+class UserInfoModel(BaseModel):
+    id: str
+    email: str
+    name: str
+    role: str
+    places: list
+
+
 @app.get("/api/user/{user_id}", tags=["User"])
 async def get_user():
     """
+    Get details of a user by id. Requires authentication. Only if role is Admin or user_id is the same as the user_id of the authenticated user.
     Get User details
     """
     # implement this in future
@@ -88,3 +113,12 @@ async def get_user():
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Logout failed",
         )
+
+    # get userid from token
+    # check if user is admin or user_id is the same as the user_id of the authenticated user
+    # if yes, return user info
+    # else, return 403
+    muster = UserInfoModel(
+        id=user_id, email="asd@gmail.com", name="asd", role="Admin", places=[]
+    )
+    return muster
