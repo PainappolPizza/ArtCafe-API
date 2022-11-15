@@ -29,6 +29,7 @@ model User {
     email      String
     name       String
     role       Role
+    score      Int
     places     Place[]
     Object3D   Object3D? @relation(fields: [object3DId], references: [id])
     object3DId Int?
@@ -50,4 +51,5 @@ model Object3D {
     location Place  @relation(fields: [placeId], references: [id])
     placeId  Int
     found_by User[]
+    data     Bytes
 }

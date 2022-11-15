@@ -13,6 +13,7 @@ async def main() -> int:
             "email": "someemail@email.net",
             "name": "Robert",
             "role": Role.Admin,
+            "score": 0,
         }
     )
 

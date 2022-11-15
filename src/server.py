@@ -30,6 +30,7 @@ class LoginModel(BaseModel):
 async def login(Credentials: LoginModel):
     """
     Login User and return JWT token
+    Login User and return JWT token
     """
     # implement login in future
     valid = False
@@ -51,8 +52,9 @@ class RegisterModel(BaseModel):
 
 
 @app.post("/api/register", tags=["Authentication"])
-async def register(User: RegisterModel):
+async def register():
     """
+    Register User and return JWT token
     Register User and return JWT token
     """
     # implement register in future
@@ -75,6 +77,7 @@ class LogoutModel(BaseModel):
 async def logout():
     """
     Logout User, revoke JWT token
+    Logout User, revoke JWT token
     """
     # implement logout in future
     valid = False
@@ -95,11 +98,22 @@ class UserInfoModel(BaseModel):
     places: list
 
 
-@app.get("/api/user/{user_id}", tags=["User"], response_model=UserInfoModel)
-async def get_user(user_id: int):
+@app.get("/api/user/{user_id}", tags=["User"])
+async def get_user():
     """
     Get details of a user by id. Requires authentication. Only if role is Admin or user_id is the same as the user_id of the authenticated user.
+    Get User details
     """
+    # implement this in future
+    valid = False
+    if valid:
+        return {"message": "User details"}
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Logout failed",
+        )
+
     # get userid from token
     # check if user is admin or user_id is the same as the user_id of the authenticated user
     # if yes, return user info
