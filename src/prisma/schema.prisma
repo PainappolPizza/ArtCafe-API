@@ -29,6 +29,7 @@ model User {
     email      String
     name       String
     role       Role
+    score      Int
     places     Place[]
     Object3D   Object3D? @relation(fields: [object3DId], references: [id])
     object3DId Int?

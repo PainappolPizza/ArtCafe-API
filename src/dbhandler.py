@@ -14,10 +14,5 @@ from prisma.enums import Role
 async def get_user(email: str) -> Prisma.user | None:
     client = Prisma()
     await client.connect()
-    user = await client.user.find_first(
-        where={
-            "email": email
-        }
-    )
+    user = await client.user.find_first(where={"email": email})
     return user
-
