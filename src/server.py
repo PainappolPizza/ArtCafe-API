@@ -74,7 +74,7 @@ class LogoutModel(BaseModel):
 
 
 @app.post("/api/logout", tags=["Authentication"])
-async def logout():
+async def logout() -> None:
     """
     Logout User, revoke JWT token
     Logout User, revoke JWT token
