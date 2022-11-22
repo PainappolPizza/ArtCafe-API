@@ -3,6 +3,6 @@ from supabase import create_client, Client
 
 url: str = os.environ.get("SUPABASE_URL")
 key: str = os.environ.get("SUPABASE_KEY")
-supabase: Client = create_client(url, key)
+client: Client = create_client(url, key)
 
-__all__ = [supabase.__name__]
+__all__ = [client.__name__]
