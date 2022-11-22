@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Response, Request, status, HTTPException, Header
 from authentication import *
-from dbhandler import *
+import dbhandler as db  
 from fastapi.openapi.utils import get_openapi
 from pydantic import BaseModel
 
@@ -30,17 +30,9 @@ class LoginModel(BaseModel):
 async def login(Credentials: LoginModel):
     """
     Login User and return JWT token
-    Login User and return JWT token
     """
-    # implement login in future
-    valid = False
-    if valid:
-        return {"message": "Login successful"}
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Invalid credentials",
-        )
+    token = await db.login(Credentials.email, Credentials.password)
+    return {"token": token}
 
 
 # create RegisterModel from Prisma user model
@@ -52,20 +44,13 @@ class RegisterModel(BaseModel):
 
 
 @app.post("/api/register", tags=["Authentication"])
-async def register():
+async def register(Credentials: RegisterModel):
     """
     Register User and return JWT token
-    Register User and return JWT token
     """
-    # implement register in future
-    valid = False
-    if valid:
-        return {"message": "Register successful"}
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Register failed",
-        )
+    token = await db.register_user(Credentials.email, Credentials.password, Credentials.name, Credentials.role)
+    return {"token": token}
+    
 
 
 class LogoutModel(BaseModel):

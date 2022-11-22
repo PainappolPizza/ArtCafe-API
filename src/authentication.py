@@ -12,52 +12,20 @@ load_dotenv()
 
 async def authenticate_user(request: Request, response: Response) -> None:
     """
-    Authenticate user and return JWT token
+    Authenticate user with JWT token
     """
     # get jwt token from header
-    token: str | None = request.headers.get("Authorization")
     # split it to get the token
-    token = token.split(" ")[1]
-    # decode token
-    try:
-        decoded_token = jwt.decode(token, os.getenv("JWT_SECRET"), algorithms=["HS256"])
-    except:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid credentials",
-        )
-
-    user_id = decoded_token.get("user_id")
-    user_id: str = decoded_token["user_id"]
-    user_email: str = decoded_token["email"]
-    user_password: str = decoded_token["password"]
-    if not user_id or not user_email or not user_password:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid credentials",
-        )
-
-    # login user to supabase
-    database.auth.sign_in(email=user_email, password=user_password)
-    # if user is not authenticated raise exception
-    if not database.auth.user():
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid credentials",
-        )
-    # add user_id to request
-    request.state.user_id = user_id
+    # check if token is valid in supabase
+    # if token is not valid raise exception
+    # if token is valid return user_id
+    pass
 
 
 async def create_jwt_token(id, email, password) -> str:
     """
     Create JWT token for user
     """
-    # create token
-    token: str = jwt.encode(
-        {"user_id": id, "email": email, "password": password},
-        key=os.getenv("JWT_SECRET"),
-        algorithm="HS256",
-    )
+    # create token with jwt
     # return token
-    return token
+    pass
