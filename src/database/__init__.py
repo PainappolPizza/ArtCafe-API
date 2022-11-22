@@ -1,3 +1,3 @@
-from .client import supabase
+from .client import client
 
-__all__ = [supabase.__name__]
+__all__ = ["client"]
