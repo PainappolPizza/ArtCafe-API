@@ -30,10 +30,11 @@ async def login_user(email: str, password: str, prisma: Prisma = global_prisma) 
     # authenticate with supabase
     # if user is not authenticated raise exception
     # create token and return it
-    pass
+    
+    
 
 
-async def register_user(email: str, password: str, name: str, role: Role, prisma: Prisma = global_prisma) -> str:
+async def register_user(email_: str, password_: str, name_: str, role_: Role, prisma: Prisma = global_prisma) -> str:
     """
     Register User and return JWT token
     """
@@ -41,7 +42,32 @@ async def register_user(email: str, password: str, name: str, role: Role, prisma
     # if user is not authenticated raise exception
     # create User in database with prisma (you get the user_id from supabase)
     # create token and return it
-    pass
+  
+
+    # create Object3D type
+    user_id = str(uuid.uuid4())
+    
+    user = User(
+        id=user_id,
+        email=email_,
+        name=name_,
+        role=role_,
+        score=0,
+        places=None,
+        Object3D=None,
+        Object3DId=None,
+        
+    )
+    
+    # create object3d in database
+    response = await prisma.object3d.create(data=user.dict())
+    # if object3d is not created raise exception
+    if not response:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Input data is not valid")
+    
+    return user
+        
+    
 
 
 async def logout_user(id: str, token: str, prisma: Prisma = global_prisma) -> None:
@@ -49,7 +75,7 @@ async def logout_user(id: str, token: str, prisma: Prisma = global_prisma) -> No
     Logout User, revoke JWT token
     """
     # revoke token in supabase
-    pass
+    
 
 
 async def get_user(user_id: str, prisma: Prisma = global_prisma) -> User:
@@ -58,8 +84,9 @@ async def get_user(user_id: str, prisma: Prisma = global_prisma) -> User:
     """
     # get user from database
     # return user
-    pass
-
+    user = await prisma.user.find_unique(where={"id":user_id})
+    if not user:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="User not found")
 
 async def get_users(condition: dict = {}, prisma: Prisma = global_prisma) -> list[User]:
     """
@@ -67,7 +94,9 @@ async def get_users(condition: dict = {}, prisma: Prisma = global_prisma) -> lis
     """
     # get users from database
     # return users
-    pass
+    users = await prisma.user.find_many(where=condition)
+    if not users:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Users not found")
 
 
 async def delete_user(user_id: str, prisma: Prisma = global_prisma) -> None:
@@ -76,7 +105,9 @@ async def delete_user(user_id: str, prisma: Prisma = global_prisma) -> None:
     """
     # delete user from supabase
     # delete user from database
-    pass
+    user = await prisma.user.delete(where={"id":user_id})
+    if not user:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="User could not be deleted")
 
 
 async def update_user(user_id: str, email:str, password:str, name: str, role: Role, prisma: Prisma = global_prisma) -> User:
@@ -86,9 +117,16 @@ async def update_user(user_id: str, email:str, password:str, name: str, role: Ro
     # update user in supabase
     # update user in database
     # return user
-    pass
+    user = await prisma.user.find_unique(where={"id":user_id})
+    if not user:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="User not found")
+    
+    update = await prisma.user.update(where={"id":user_id},data={"email":email,"password":password,"name":name,"role":role})
 
+    if not update:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="User could not be updated")
 
+ 
 # Place Database functions
 
 
