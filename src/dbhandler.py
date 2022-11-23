@@ -21,6 +21,11 @@ async def create_prisma() -> Prisma:
     return prisma
 
 
+global_prisma = {
+    "prisma": None,
+}
+
+
 async def login_user(email: str, password: str, prisma: Prisma = global_prisma) -> str:
     """
     Login User and return JWT token
