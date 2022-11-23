@@ -75,7 +75,7 @@ async def logout_user(id: str, token: str, prisma: Prisma = global_prisma) -> No
     Logout User, revoke JWT token
     """
     # revoke token in supabase
-    pass
+    
 
 
 async def get_user(user_id: str, prisma: Prisma = global_prisma) -> User:
@@ -84,8 +84,9 @@ async def get_user(user_id: str, prisma: Prisma = global_prisma) -> User:
     """
     # get user from database
     # return user
-    pass
-
+    user = await prisma.user.find_unique(where={"id":user_id})
+    if not user:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="User not found")
 
 async def get_users(condition: dict = {}, prisma: Prisma = global_prisma) -> list[User]:
     """
@@ -93,7 +94,9 @@ async def get_users(condition: dict = {}, prisma: Prisma = global_prisma) -> lis
     """
     # get users from database
     # return users
-    pass
+    users = await prisma.user.find_many(where=condition)
+    if not users:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Users not found")
 
 
 async def delete_user(user_id: str, prisma: Prisma = global_prisma) -> None:
@@ -102,7 +105,9 @@ async def delete_user(user_id: str, prisma: Prisma = global_prisma) -> None:
     """
     # delete user from supabase
     # delete user from database
-    pass
+    user = await prisma.user.delete(where={"id":user_id})
+    if not user:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="User could not be deleted")
 
 
 async def update_user(user_id: str, email:str, password:str, name: str, role: Role, prisma: Prisma = global_prisma) -> User:
@@ -112,9 +117,16 @@ async def update_user(user_id: str, email:str, password:str, name: str, role: Ro
     # update user in supabase
     # update user in database
     # return user
-    pass
+    user = await prisma.user.find_unique(where={"id":user_id})
+    if not user:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="User not found")
+    
+    update = await prisma.user.update(where={"id":user_id},data={"email":email,"password":password,"name":name,"role":role})
 
+    if not update:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="User could not be updated")
 
+ 
 # Place Database functions
 
 
