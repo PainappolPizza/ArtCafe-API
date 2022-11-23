@@ -30,10 +30,11 @@ async def login_user(email: str, password: str, prisma: Prisma = global_prisma) 
     # authenticate with supabase
     # if user is not authenticated raise exception
     # create token and return it
-    pass
+    
+    
 
 
-async def register_user(email: str, password: str, name: str, role: Role, prisma: Prisma = global_prisma) -> str:
+async def register_user(email_: str, password_: str, name_: str, role_: Role, prisma: Prisma = global_prisma) -> str:
     """
     Register User and return JWT token
     """
@@ -41,7 +42,32 @@ async def register_user(email: str, password: str, name: str, role: Role, prisma
     # if user is not authenticated raise exception
     # create User in database with prisma (you get the user_id from supabase)
     # create token and return it
-    pass
+  
+
+    # create Object3D type
+    user_id = str(uuid.uuid4())
+    
+    user = User(
+        id=user_id,
+        email=email_,
+        name=name_,
+        role=role_,
+        score=0,
+        places=None,
+        Object3D=None,
+        Object3DId=None,
+        
+    )
+    
+    # create object3d in database
+    response = await prisma.object3d.create(data=user.dict())
+    # if object3d is not created raise exception
+    if not response:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Input data is not valid")
+    
+    return user
+        
+    
 
 
 async def logout_user(id: str, token: str, prisma: Prisma = global_prisma) -> None:
