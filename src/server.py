@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Response, Request, status, HTTPException, Header
 from authentication import *
-import dbhandler as db  
+import dbhandler as db
 from fastapi.openapi.utils import get_openapi
 from pydantic import BaseModel
 
@@ -48,9 +48,10 @@ async def register(Credentials: RegisterModel):
     """
     Register User and return JWT token
     """
-    token = await db.register_user(Credentials.email, Credentials.password, Credentials.name, Credentials.role)
+    token = await db.register_user(
+        Credentials.email, Credentials.password, Credentials.name, Credentials.role
+    )
     return {"token": token}
-    
 
 
 class LogoutModel(BaseModel):
