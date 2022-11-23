@@ -1,32 +1,24 @@
 from __future__ import annotations
 
-
-from prisma import Prisma
+from typing import Final
+from prisma import Prisma, Base64
 from prisma.models import User, Place, Object3D
 from prisma.enums import Role, Importance
+from prisma.types import PlaceWhereInput, Object3DWhereInput, PlaceCreateInput
 from database import client
 from fastapi import HTTPException, status
 from authentication import create_jwt_token
 import os
 import uuid
+from database import global_clients, Clients
 
 
-# User Database functions
-async def create_prisma() -> Prisma:
-    """
-    Create Prisma Client
-    """
-    prisma = Prisma()
-    await prisma.connect()
-    return prisma
+EMPTY_DICT: Final[dict] = {}
 
 
-global_prisma = {
-    "prisma": None,
-}
-
-
-async def login_user(email: str, password: str, prisma: Prisma = global_prisma) -> str:
+async def login_user(
+    email: str, password: str, clients: Clients = global_clients
+) -> str:
     """
     Login User and return JWT token
     """
@@ -37,7 +29,7 @@ async def login_user(email: str, password: str, prisma: Prisma = global_prisma) 
 
 
 async def register_user(
-    email: str, password: str, name: str, role: Role, prisma: Prisma = global_prisma
+    email: str, password: str, name: str, role: Role, clients: Clients = global_clients
 ) -> str:
     """
     Register User and return JWT token
@@ -49,7 +41,7 @@ async def register_user(
     pass
 
 
-async def logout_user(id: str, token: str, prisma: Prisma = global_prisma) -> None:
+async def logout_user(id: str, token: str, clients: Clients = global_clients) -> None:
     """
     Logout User, revoke JWT token
     """
@@ -57,7 +49,7 @@ async def logout_user(id: str, token: str, prisma: Prisma = global_prisma) -> No
     pass
 
 
-async def get_user(user_id: str, prisma: Prisma = global_prisma) -> User:
+async def get_user(user_id: str, clients: Clients = global_clients) -> User:
     """
     Get User details
     """
@@ -66,7 +58,9 @@ async def get_user(user_id: str, prisma: Prisma = global_prisma) -> User:
     pass
 
 
-async def get_users(condition: dict = {}, prisma: Prisma = global_prisma) -> list[User]:
+async def get_users(
+    condition: dict = {}, clients: Clients = global_clients
+) -> list[User]:
     """
     Get all Users
     """
@@ -75,7 +69,7 @@ async def get_users(condition: dict = {}, prisma: Prisma = global_prisma) -> lis
     pass
 
 
-async def delete_user(user_id: str, prisma: Prisma = global_prisma) -> None:
+async def delete_user(user_id: str, clients: Clients = global_clients) -> None:
     """
     Delete User
     """
@@ -90,7 +84,7 @@ async def update_user(
     password: str,
     name: str,
     role: Role,
-    prisma: Prisma = global_prisma,
+    clients: Clients = global_clients,
 ) -> User:
     """
     Update User
@@ -109,32 +103,40 @@ async def create_place(
     city: str,
     country: str,
     geoLocation: str,
-    importance: str,
+    importance: Importance,
     story: str,
     uri: str,
     User: User | None,
     userId: str | None,
-    prisma: Prisma = global_prisma,
+    clients: Clients = global_clients,
 ) -> Place:
     """
     Create Place
     """
     # create place in database
     # return place
-    place = Place(
-        name=name,
-        city=city,
-        country=country,
-        geolocation=geoLocation,
-        importance=importance,
-        story=story,
-        uri=uri,
+
+    prisma: Prisma = await clients.prisma
+
+    response = await prisma.place.create(
+        data=PlaceCreateInput(
+            name=name,
+            city=city,
+            country=country,
+            geolocation=geoLocation,
+            importance=importance,
+            story=story,
+            uri=uri,
+        )
     )
 
-    response = await prisma.place.create(data=place.dict())
     if not response:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Place could not be created")
-    return place
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Place could not be created",
+        )
+
+    return response
 
 
 async def modify_place(
@@ -143,66 +145,99 @@ async def modify_place(
     city: str,
     geolocation: str,
     country: str,
-    importance: str,
+    importance: Importance,
     story: str,
     uri: str,
     User: User | None,
     userId: str | None,
-    prisma: Prisma = global_prisma,
+    clients: Clients = global_clients,
 ) -> Place:
     """
     Modify Place
     """
     # modify place in database
     # return place
+    prisma: Prisma = await clients.prisma
+
     place = await prisma.place.find_unique(where={"id": place_id})
+
     if not place:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
-    place = await prisma.place.update(where={"id": place_id},
-                                      data={"city": city, "country": country, "geolocation": geolocation,
-                                            "importance": importance, "story": story, "uri": uri})
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Place not found"
+        )
+
+    place = await prisma.place.update(
+        where={"id": place_id},
+        data={
+            "city": city,
+            "country": country,
+            "geolocation": geolocation,
+            "importance": importance,
+            "story": story,
+            "uri": uri,
+        },
+    )
+
     if not place:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Place could not be modified")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Place could not be modified",
+        )
+
     return place
 
 
-async def delete_place(place_id: str, prisma: Prisma = global_prisma) -> None:
+async def delete_place(place_id: str, clients: Clients = global_clients) -> None:
     """
     Delete Place
     """
     # delete place in database
+    prisma: Prisma = await clients.prisma
+
     place = await prisma.place.find_unique(where={"id": place_id})
+
     if not place:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Place not found"
+        )
+
     delete = await prisma.place.delete(where={"id": place_id})
+
     if not delete:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Place could not be deleted")
-    return delete
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Place could not be deleted",
+        )
 
 
-async def get_place(place_id: str, prisma: Prisma = global_prisma) -> Place:
+async def get_place(place_id: str, clients: Clients = global_clients) -> Place:
     """
     Get Place
     """
     # get place from database
     # return place
+    prisma: Prisma = await clients.prisma
+
     place = await prisma.place.find_unique(where={"id": place_id})
+
     if not place:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Place not found"
+        )
+
     return place
 
 
 async def get_places(
-    condition: dict = {}, prisma: Prisma = global_prisma
+    condition: PlaceWhereInput = {}, clients: Clients = global_clients
 ) -> list[Place]:
     """
     Get all Places
     """
-    # get places from database
-    # return places
+    prisma: Prisma = await clients.prisma
+
     places = await prisma.place.find_many(where=condition)
-    if not places:
-        return []
+
     return places
 
 
@@ -217,13 +252,13 @@ def get_bytes_from_url(img_path: str) -> bytes:
     return img_bytes
 
 
-def get_img_from_bytes(img_bytes: bytes) -> str:
+def get_img_from_bytes(img_bytes: bytes) -> None:
     with open("test.avif", "wb") as f:
         f.write(img_bytes)
 
 
 async def create_object3d(
-    location: Place, placeId: str, img_url: str, prisma: Prisma = global_prisma
+    location: Place, placeId: str, img_url: str, clients: Clients = global_clients
 ) -> Object3D:
     """
     Create Object3D and return it
@@ -236,10 +271,13 @@ async def create_object3d(
     # create uuid for object3d
     object3d_id = str(uuid.uuid4())
 
+    prisma: Prisma = await clients.prisma
+
     # create Object3D type
     obj3d = Object3D(id=object3d_id, location=location, placeId=placeId, img=img_bytes)
     # create object3d in database
-    response = await prisma.object3d.create(data=obj3d.dict())
+    response = await prisma.object3d.create(data={"data": Base64(img_bytes)})
+
     # if object3d is not created raise exception
     if not response:
         raise HTTPException(
@@ -252,10 +290,9 @@ async def create_object3d(
 
 async def modify_object3d(
     object3d_id: str,
-    location: Place,
     placeId: str,
     img_url: str,
-    prisma: Prisma = global_prisma,
+    clients: Clients = global_clients,
 ) -> Object3D:
     """
     Modify Object3D
@@ -264,35 +301,41 @@ async def modify_object3d(
     params: placeId: str
     params: img_url: str
     """
+    prisma: Prisma = await clients.prisma
+
     obj3d = await prisma.object3d.find_unique(where={"id": object3d_id})
+
     if not obj3d:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Object3D not found"
         )
-    # update object3d in database
+
+    location = await prisma.place.find_unique(where={"id": placeId})
+
     update = await prisma.object3d.update(
         where={"id": object3d_id},
         data={
-            "location": location,
-            "placeId": placeId,
-            "img": get_bytes_from_url(img_url),
+            "data": Base64(get_bytes_from_url(img_url)),
         },
     )
-    # if object3d is not updated raise exception
+
     if not update:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Object3D could not be updated",
         )
+
     return obj3d
 
 
-async def delete_object3d(object3d_id: str, prisma: Prisma = global_prisma) -> None:
+async def delete_object3d(object3d_id: str, clients: Clients = global_clients) -> None:
     """
     Delete Object3D
     params: object3d_id: str
     """
-    # delete object3d from database
+
+    prisma: Prisma = await clients.prisma
+
     delete = await prisma.object3d.delete(where={"id": object3d_id})
     # if object3d is not deleted raise exception
     if not delete:
@@ -300,33 +343,36 @@ async def delete_object3d(object3d_id: str, prisma: Prisma = global_prisma) -> N
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Object3D could not be deleted",
         )
-    return "OBJECT3D_DELETED"
 
 
-async def get_object3d(object3d_id: str, prisma: Prisma = global_prisma) -> Object3D:
+async def get_object3d(object3d_id: str, clients: Clients = global_clients) -> Object3D:
     """
     Get Object3D
     params: object3d_id: str
     """
-    # get object3d from database
+    prisma: Prisma = await clients.prisma
+
     obj3d = await prisma.object3d.find_unique(where={"id": object3d_id})
-    # if object3d is not found raise exception
+
     if not obj3d:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Object3D not found"
         )
+
     return obj3d
 
 
 async def get_object3ds(
-    condition: dict = {}, prisma: Prisma = global_prisma
+    condition: Object3DWhereInput = {},
+    clients: Clients = global_clients,
 ) -> list[Object3D]:
     """
     Get all Object3Ds
     params: condition: dict
     """
+    prisma: Prisma = await clients.prisma
+
     # get object3ds from database
     obj3ds = await prisma.object3d.find_many(where=condition)
-    if not obj3ds:
-        return []
+
     return obj3ds

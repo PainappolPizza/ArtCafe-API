@@ -3,6 +3,7 @@ from authentication import *
 import dbhandler as db
 from fastapi.openapi.utils import get_openapi
 from pydantic import BaseModel
+from prisma.enums import Role
 
 
 app = FastAPI(
@@ -31,7 +32,7 @@ async def login(Credentials: LoginModel):
     """
     Login User and return JWT token
     """
-    token = await db.login(Credentials.email, Credentials.password)
+    token = await db.login_user(Credentials.email, Credentials.password)
     return {"token": token}
 
 
@@ -40,7 +41,7 @@ class RegisterModel(BaseModel):
     email: str
     password: str
     name: str
-    role: str
+    role: Role
 
 
 @app.post("/api/register", tags=["Authentication"])
@@ -60,7 +61,7 @@ class LogoutModel(BaseModel):
 
 
 @app.post("/api/logout", tags=["Authentication"])
-async def logout() -> None:
+async def logout() -> dict[str, str]:
     """
     Logout User, revoke JWT token
     Logout User, revoke JWT token

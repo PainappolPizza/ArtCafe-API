@@ -1,3 +1,3 @@
-from .client import supabase_client
+from .client import global_clients, Clients
 
-__all__ = ["supabase_client"]
+__all__ = ["Clients", "global_clients"]
