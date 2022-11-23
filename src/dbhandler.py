@@ -106,6 +106,9 @@ async def update_user(
 
 async def create_place(
     name: str,
+    city: str,
+    country: str,
+    geoLocation: str,
     importance: str,
     story: str,
     uri: str,
@@ -118,12 +121,28 @@ async def create_place(
     """
     # create place in database
     # return place
-    pass
+    place = Place(
+        name=name,
+        city=city,
+        country=country,
+        geolocation=geoLocation,
+        importance=importance,
+        story=story,
+        uri=uri,
+    )
+
+    response = await prisma.place.create(data=place.dict())
+    if not response:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Place could not be created")
+    return place
 
 
 async def modify_place(
     place_id: str,
     name: str,
+    city: str,
+    geolocation: str,
+    country: str,
     importance: str,
     story: str,
     uri: str,
@@ -136,7 +155,15 @@ async def modify_place(
     """
     # modify place in database
     # return place
-    pass
+    place = await prisma.place.find_unique(where={"id": place_id})
+    if not place:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
+    place = await prisma.place.update(where={"id": place_id},
+                                      data={"city": city, "country": country, "geolocation": geolocation,
+                                            "importance": importance, "story": story, "uri": uri})
+    if not place:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Place could not be modified")
+    return place
 
 
 async def delete_place(place_id: str, prisma: Prisma = global_prisma) -> None:
@@ -144,7 +171,13 @@ async def delete_place(place_id: str, prisma: Prisma = global_prisma) -> None:
     Delete Place
     """
     # delete place in database
-    pass
+    place = await prisma.place.find_unique(where={"id": place_id})
+    if not place:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
+    delete = await prisma.place.delete(where={"id": place_id})
+    if not delete:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Place could not be deleted")
+    return delete
 
 
 async def get_place(place_id: str, prisma: Prisma = global_prisma) -> Place:
@@ -153,7 +186,10 @@ async def get_place(place_id: str, prisma: Prisma = global_prisma) -> Place:
     """
     # get place from database
     # return place
-    pass
+    place = await prisma.place.find_unique(where={"id": place_id})
+    if not place:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Place not found")
+    return place
 
 
 async def get_places(
@@ -164,7 +200,10 @@ async def get_places(
     """
     # get places from database
     # return places
-    pass
+    places = await prisma.place.find_many(where=condition)
+    if not places:
+        return []
+    return places
 
 
 # Object3d Database functions
