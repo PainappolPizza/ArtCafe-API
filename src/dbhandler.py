@@ -25,7 +25,7 @@ async def login_user(
     # authenticate with supabase
     # if user is not authenticated raise exception
     # create token and return it
-    global_clients.client.auth.sign_in(email=email, password=password)
+    global_clients.supabase.auth.sign_in(email=email, password=password)
 
 
 async def register_user(
@@ -38,7 +38,7 @@ async def register_user(
     # if user is not authenticated raise exception
     # create User in database with prisma (you get the user_id from supabase)
     # create token and return it
-    global_clients.client.auth.sign_up(email=email, password=password)
+    global_clients.supabase.auth.sign_up(email=email, password=password)
 
 
 async def logout_user(id: str, token: str, clients: Clients = global_clients) -> None:
@@ -46,7 +46,7 @@ async def logout_user(id: str, token: str, clients: Clients = global_clients) ->
     Logout User, revoke JWT token
     """
     # revoke token in supabase
-    global_clients.client.auth.sign_out()
+    global_clients.supabase.auth.sign_out()
 
 
 async def get_user(user_id: str, clients: Clients = global_clients) -> User:

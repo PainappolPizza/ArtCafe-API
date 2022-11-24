@@ -1,7 +1,7 @@
 import os
 
 from prisma import Prisma
-from supabase import create_client, Client
+from supabase import create_client, Client as Supabase
 
 from dataclasses import dataclass
 from dotenv import load_dotenv
@@ -18,7 +18,7 @@ class Clients:
     key: str
 
     @cached_property
-    def client(self) -> Client:
+    def supabase(self) -> Supabase:
         return create_client(self.url, self.key)
 
     @async_cached_property
@@ -38,4 +38,4 @@ else:
     global_clients = Clients(url=url, key=key)
 
 
-__all__ = ["Clients", "global_clients"]
+__all__ = ["Supabase", "Prisma", "global_clients"]
