@@ -1,16 +1,22 @@
 # ArtCafe-API
 
-clone repository
+## Geocaching with extra steps (and coffee!)
 
-install requirements
 
-create .env files in ./database and ./prisma
+### Run the project locally:
 
-Fill up .env files (search for pizza man message on whatsapp)
-
-cd src
-
+```bash
 uvicorn server:app --reload
+```
 
+### Install as a package
 
+```bash
+make install
+```
 
+### Deploy to edge (Coming soon!)
+
+```bash
+vercel
+```
