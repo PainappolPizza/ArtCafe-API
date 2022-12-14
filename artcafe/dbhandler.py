@@ -1,16 +1,19 @@
 from __future__ import annotations
 
 from typing import Final
-from prisma import Prisma, Base64
-from prisma.models import User, Place, Object3D
-from prisma.enums import Role, Importance
-from prisma.types import PlaceWhereInput, Object3DWhereInput, PlaceCreateInput
-from database import client
+from prisma_def import Prisma, Base64
+from prisma_def.models import User, Place, Object3D
+from prisma_def.enums import Role, Importance
+from prisma_def.types import PlaceWhereInput, Object3DWhereInput, PlaceCreateInput
+
+# from database import client
 from fastapi import HTTPException, status
-from authentication import create_jwt_token
+
+# from authentication import create_jwt_token
 import os
 import uuid
-from database import global_clients, Clients
+
+from .database.client import global_clients, Clients
 
 
 EMPTY_DICT: Final[dict] = {}

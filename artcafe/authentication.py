@@ -1,11 +1,8 @@
 ###
 # Methods for authenticating users
 ###
-import jwt
-from fastapi import FastAPI, Response, Request, status, HTTPException, Header
-import database
+from fastapi import Response, Request
 from dotenv import load_dotenv
-import os
 
 load_dotenv()
 

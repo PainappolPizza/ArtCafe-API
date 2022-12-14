@@ -5,3 +5,9 @@ __pycache__
 .mypy_cache
 .env
 migrations
+*.log
+*.LOG
+*.log.*
+*.LOG.*
+*.LOGS
+.deta

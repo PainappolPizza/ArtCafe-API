@@ -1,10 +1,11 @@
+from __future__ import annotations
+from prisma_def import Prisma
+from prisma_def.enums import Role
 from fastapi import FastAPI, Response, Request, status, HTTPException, Header
-from authentication import *
-import dbhandler as db
-from fastapi.openapi.utils import get_openapi
+from artcafe.authentication import *
+import artcafe.dbhandler as db
+from typing import Dict
 from pydantic import BaseModel
-from prisma.enums import Role
-
 
 app = FastAPI(
     title="ArtCafe API",
@@ -61,7 +62,7 @@ class LogoutModel(BaseModel):
 
 
 @app.post("/api/logout", tags=["Authentication"])
-async def logout() -> dict[str, str]:
+async def logout() -> Dict[str, str]:
     """
     Logout User, revoke JWT token
     Logout User, revoke JWT token
@@ -101,11 +102,7 @@ async def get_user():
             detail=f"Logout failed",
         )
 
-    # get userid from token
-    # check if user is admin or user_id is the same as the user_id of the authenticated user
-    # if yes, return user info
-    # else, return 403
-    muster = UserInfoModel(
-        id=user_id, email="asd@gmail.com", name="asd", role="Admin", places=[]
-    )
-    return muster
+
+@app.get("/hello")
+def hello_world():
+    return {"message": "Hello World"}

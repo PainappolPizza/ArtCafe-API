@@ -1,21 +1,21 @@
 import os
 
-from prisma import Prisma
+from typing import Optional
+from prisma_def import Prisma
 from supabase import create_client, Client as Supabase
 
-from dataclasses import dataclass
 from dotenv import load_dotenv
 
 from async_property import async_cached_property
 from functools import cached_property
 
-load_dotenv()
+load_dotenv("artcafe/database/.env")
 
 
-@dataclass(frozen=True, kw_only=True)
 class Clients:
-    url: str
-    key: str
+    def __init__(self, url: str, key: str):
+        self.url = url
+        self.key = key
 
     @cached_property
     def supabase(self) -> Supabase:
@@ -28,8 +28,8 @@ class Clients:
         return prisma
 
 
-url: str | None = os.environ.get("SUPABASE_URL")
-key: str | None = os.environ.get("SUPABASE_KEY")
+url: Optional[str] = os.environ.get("SUPABASE_URL")
+key: Optional[str] = os.environ.get("SUPABASE_KEY")
 
 
 if not url or not key:
