@@ -2,10 +2,12 @@ from __future__ import annotations
 from prisma_def import Prisma
 from prisma_def.enums import Role
 from fastapi import FastAPI, Response, Request, status, HTTPException, Header
+from fastapi.middleware.cors import CORSMiddleware
 from artcafe.authentication import *
 import artcafe.dbhandler as db
 from typing import Dict
 from pydantic import BaseModel
+
 
 app = FastAPI(
     title="ArtCafe API",
@@ -22,6 +24,14 @@ app = FastAPI(
     },
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 class LoginModel(BaseModel):
     email: str
@@ -29,11 +39,11 @@ class LoginModel(BaseModel):
 
 
 @app.post("/api/login", tags=["Authentication"])
-async def login(Credentials: LoginModel):
+async def login(credentials: LoginModel):
     """
     Login User and return JWT token
     """
-    token = await db.login_user(Credentials.email, Credentials.password)
+    token = await db.login_user(credentials.email, credentials.password)
     return {"token": token}
 
 
@@ -46,14 +56,14 @@ class RegisterModel(BaseModel):
 
 
 @app.post("/api/register", tags=["Authentication"])
-async def register(Credentials: RegisterModel):
+async def register(credentials: RegisterModel):
     """
     Register User and return JWT token
     """
     token = await db.register_user(
-        Credentials.email, Credentials.password, Credentials.name, Credentials.role
+        credentials.email, credentials.password, credentials.name, credentials.role
     )
-    return {"token": token}
+    return {"Result": token}
 
 
 class LogoutModel(BaseModel):

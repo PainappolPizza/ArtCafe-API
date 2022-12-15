@@ -19,7 +19,8 @@ class Clients:
 
     @cached_property
     def supabase(self) -> Supabase:
-        return create_client(self.url, self.key)
+        supabase: Supabase = create_client(self.url, self.key)
+        return supabase
 
     @async_cached_property
     async def prisma(self) -> Prisma:
