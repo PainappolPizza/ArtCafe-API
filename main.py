@@ -1,12 +1,25 @@
 from __future__ import annotations
-from prisma_def import Prisma
-from prisma_def.enums import Role
+
+# FastAPI
 from fastapi import FastAPI, Response, Request, status, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
-from artcafe.authentication import *
-import artcafe.dbhandler as db
-from typing import Dict
 from pydantic import BaseModel
+
+# Database
+from artcafe.database.client import global_clients
+
+# import artcafe.dbhandler as db
+
+
+# Typing
+from typing import Dict, Union, Optional
+from artcafe.database.client import Clients
+from gotrue.types import Session, User as AuthUser
+
+# Exported Interfaces
+from _prisma import Prisma
+from _prisma.models import User, Place
+from _prisma.enums import Role
 
 
 app = FastAPI(
@@ -38,23 +51,41 @@ class LoginModel(BaseModel):
     password: str
 
 
-@app.post("/api/login", tags=["Authentication"])
+class SignOnResponse(BaseModel):
+    token: str
+    user: User
+
+
+@app.post("/api/login", response_model=SignOnResponse, tags=["Authentication"])
 async def login(credentials: LoginModel):
     """
     Login User and return JWT token
     """
-    try:
-        token = await db.login_user(credentials.email, credentials.password)
-    except Exception as e:
+    session: Optional[Session] = global_clients.supabase.auth.sign_in(
+        email=credentials.email, password=credentials.password
+    )
+
+    if not session or not session.user:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Login failed: {e}",
+            detail=f"Login failed",
         )
 
-    return {"token": token}
+    prisma: Prisma = global_clients.prisma
+
+    user = await prisma.user.find_first(
+        where={"email": credentials.email}, include={"places": True}
+    )
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Login failed",
+        )
+
+    return {"token": session.access_token, "user": user}
 
 
-# create RegisterModel from Prisma user model
 class RegisterModel(BaseModel):
     email: str
     password: str
@@ -62,64 +93,92 @@ class RegisterModel(BaseModel):
     role: Role
 
 
-@app.post("/api/register", tags=["Authentication"])
+@app.post("/api/register", response_model=SignOnResponse, tags=["Authentication"])
 async def register(credentials: RegisterModel):
     """
     Register User and return JWT token
     """
-    token = await db.register_user(
-        credentials.email, credentials.password, credentials.name, credentials.role
+    session: Session = global_clients.supabase.auth.sign_up(
+        email=credentials.email, password=credentials.password
     )
-    return {"Result": token}
 
-
-class LogoutModel(BaseModel):
-    id: str
-    token: str
-
-
-@app.post("/api/logout", tags=["Authentication"])
-async def logout() -> Dict[str, str]:
-    """
-    Logout User, revoke JWT token
-    Logout User, revoke JWT token
-    """
-    # implement logout in future
-    valid = False
-    if valid:
-        return {"message": "Logout successful"}
-    else:
+    if not session or not session.user:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Logout failed",
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Registration failed",
         )
 
+    prisma: Prisma = global_clients.prisma
 
-class UserInfoModel(BaseModel):
-    id: str
-    email: str
-    name: str
-    role: str
-    places: list
+    user = await prisma.user.create(
+        data={
+            "email": credentials.email,
+            "name": credentials.name,
+            "role": credentials.role,
+            "score": 0,
+        }
+    )
+
+    return {"token": session.access_token, "user": user}
 
 
-@app.get("/api/user/{user_id}", tags=["User"])
-async def get_user():
+class LogoutResponse(BaseModel):
+    message: str
+
+
+@app.post("/api/logout", response_model=LogoutResponse, tags=["Authentication"])
+async def logout():
     """
-    Get details of a user by id. Requires authentication. Only if role is Admin or user_id is the same as the user_id of the authenticated user.
+    Logout User, revoke JWT token
+    """
+    global_clients.supabase.auth.sign_out()
+
+    return {"message": "Logout successful"}
+
+
+@app.get("/api/user/{user_id}", response_model=User, tags=["User"])
+async def get_user(user_id: str, token: str):
+    """
+    Get details of a user by id.
+    Requires authentication.
+    Only if role is Admin or user_id is the same as the user_id of the authenticated user.
     Get User details
     """
-    # implement this in future
-    valid = False
-    if valid:
-        return {"message": "User details"}
-    else:
+
+    # Validate token
+    try:
+        auth_user: AuthUser = global_clients.supabase.auth.api.get_user(token)
+    except Exception:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Logout failed",
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Invalid token",
         )
 
+    # Get user from database
+    prisma: Prisma = global_clients.prisma
 
-@app.get("/hello")
-def hello_world():
-    return {"message": "Hello World"}
+    user = await prisma.user.find_first(where={"id": user_id}, include={"places": True})
+    req_user = await prisma.user.find_first(where={"email": auth_user.email})
+
+    if not user or not req_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User not found",
+        )
+
+    # Check if user is allowed to access this user
+    if (req_user.role != Role.Admin) or (req_user.email != user.email):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Access denied",
+        )
+
+    return user
+
+
+@app.get("/")
+def root():
+    return {
+        "message": "Welcome to the ArtCafe API",
+        "authors": "Antonino Rossi, Bertold Vincze, David Bobek, Dinu Scripnic",
+    }

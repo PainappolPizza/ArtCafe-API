@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from typing import Final
-from prisma_def import Prisma, Base64
-from prisma_def.models import User, Place, Object3D
-from prisma_def.enums import Role, Importance
-from prisma_def.types import PlaceWhereInput, Object3DWhereInput, PlaceCreateInput
+from _prisma import Prisma, Base64
+from _prisma.models import User, Place, Object3D
+from _prisma.enums import Role, Importance
+from _prisma.types import PlaceWhereInput, Object3DWhereInput, PlaceCreateInput
 
 # from database import client
 from fastapi import HTTPException, status
