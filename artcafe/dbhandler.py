@@ -30,6 +30,11 @@ async def login_user(
     # create token and return it
     session = clients.supabase.auth.sign_in(email=email, password=password)
 
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Invalid credentials"
+        )
+
     return session.access_token
 
 

@@ -43,7 +43,14 @@ async def login(credentials: LoginModel):
     """
     Login User and return JWT token
     """
-    token = await db.login_user(credentials.email, credentials.password)
+    try:
+        token = await db.login_user(credentials.email, credentials.password)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Login failed: {e}",
+        )
+
     return {"token": token}
 
 
