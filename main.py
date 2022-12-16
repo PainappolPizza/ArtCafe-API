@@ -16,9 +16,10 @@ from typing import Dict, Union, Optional
 from gotrue.types import Session, User as AuthUser
 
 # Exported Interfaces
-from _prisma import Prisma
-from _prisma.models import User, Place
-from _prisma.enums import Role
+from prisma import Prisma
+from prisma.models import User, Place
+from prisma.enums import Role
+from prisma.errors import PrismaError
 
 
 app = FastAPI(
@@ -44,9 +45,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# listen on port 8082
-# uvicorn main:app --reload --port 8082
 
+@app.on_event("startup")
+async def startup():
+    await prisma.connect()
+
+
+@app.on_event("shutdown")
+async def shutdown():
+    await prisma.disconnect()
 
 
 class LoginModel(BaseModel):
@@ -79,7 +86,6 @@ async def login(credentials: LoginModel):
             where={"email": credentials.email}, include={"places": True}
         )
 
-
     if not user:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -99,7 +105,11 @@ class RegisterModel(BaseModel):
         use_enum_values = True
 
 
-@app.post("/api/register", response_model=SignOnResponse, tags=["Authentication"])
+class _Model(BaseModel):
+    token: str
+
+
+@app.post("/api/register", response_model=_Model, tags=["Authentication"])
 async def register(credentials: RegisterModel):
     """
     Register User and return JWT token
@@ -108,16 +118,14 @@ async def register(credentials: RegisterModel):
         email=credentials.email, password=credentials.password
     )
 
-    print(session)
-
     if not session or not session.user:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Registration failed",
         )
 
-    async with prisma as p:
-        user = await p.user.create(
+    try:
+        user = await prisma.user.create(
             data={
                 "email": credentials.email,
                 "name": credentials.name,
@@ -125,9 +133,11 @@ async def register(credentials: RegisterModel):
                 "score": 0,
             }
         )
+    except PrismaError as e:
+        print(f"Error creating user: {e}")
 
-
-    return {"token": session.access_token, "user": user}
+    # return {"token": session.access_token, "user": user}
+    return {"token": session.access_token}
 
 
 class LogoutResponse(BaseModel):

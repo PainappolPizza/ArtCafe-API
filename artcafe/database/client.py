@@ -1,7 +1,7 @@
 import os
 
 from typing import Optional
-from _prisma import Prisma
+from prisma import Prisma
 from supabase import create_client, Client as Supabase
 
 from dotenv import load_dotenv
