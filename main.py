@@ -109,7 +109,7 @@ class _Model(BaseModel):
     token: str
 
 
-@app.post("/api/register", response_model=_Model, tags=["Authentication"])
+@app.post("/api/register", response_model=RegisterModel, tags=["Authentication"])
 async def register(credentials: RegisterModel):
     """
     Register User and return JWT token
@@ -136,8 +136,8 @@ async def register(credentials: RegisterModel):
     except PrismaError as e:
         print(f"Error creating user: {e}")
 
-    # return {"token": session.access_token, "user": user}
-    return {"token": session.access_token}
+    return {"token": session.access_token, "user": user}
+    # return {"token": session.access_token}
 
 
 class LogoutResponse(BaseModel):
