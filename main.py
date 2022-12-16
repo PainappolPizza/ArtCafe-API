@@ -108,6 +108,8 @@ async def register(credentials: RegisterModel):
         email=credentials.email, password=credentials.password
     )
 
+    print(session)
+
     if not session or not session.user:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
