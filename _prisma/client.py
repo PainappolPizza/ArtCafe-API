@@ -43,6 +43,7 @@ from ._types import BaseModelT
 from .engine import AbstractEngine, QueryEngine
 from .builder import QueryBuilder
 from .generator.models import EngineType, OptionalValueFromEnvVar
+from ._compat import removeprefix
 
 
 __all__ = (
@@ -56,68 +57,8 @@ __all__ = (
     'get_client',
 )
 
-SCHEMA = '''
-// database
-datasource db {
-    provider = "postgresql"
-    url      = env("DATABASE_URL")
-}
-
-// generator
-generator client {
-    provider             = "prisma-client-py"
-    recursive_type_depth = 5
-}
-
-// enums
-enum Role {
-    User
-    Creator
-    Admin
-}
-
-enum Importance {
-    High
-    Medium
-    Low
-}
-
-// data models
-model User {
-    id         String    @id @default(uuid())
-    email      String
-    name       String
-    role       Role
-    score      Int
-    places     Place[]
-    Object3D   Object3D? @relation(fields: [object3DId], references: [id])
-    object3DId String?
-}
-
-model Place {
-    id         String     @id @default(uuid())
-    name       String
-    city       String
-    country    String
-    geolocation String
-    importance Importance
-    story      String
-    uri        String    
-    User       User?      @relation(fields: [userId], references: [id])
-    userId     String?
-    Object3D   Object3D[]
-}
-
-model Object3D {
-    id       String @id @default(uuid())
-    location Place  @relation(fields: [placeId], references: [id])
-    placeId  String
-    found_by User[]
-    data     Bytes
-}
-
-'''
 SCHEMA_PATH = Path('/home/unknown_equine_hacker/projects/python/prisma/artcafe/prisma/schema.prisma')
+PACKAGED_SCHEMA_PATH = Path(__file__).parent.joinpath('schema.prisma')
 
 ENGINE_TYPE: EngineType = EngineType.binary
 
@@ -280,7 +221,7 @@ class Prisma:
             timeout = self._connect_timeout
 
         if self.__engine is None:
-            self.__engine = self._create_engine(dml=SCHEMA)
+            self.__engine = self._create_engine(dml_path=PACKAGED_SCHEMA_PATH)
 
         datasources: Optional[List[types.DatasourceOverride]] = None
         if self._datasource is not None:
@@ -378,9 +319,9 @@ class Prisma:
         )
         return await self._engine.query(builder.build())
 
-    def _create_engine(self, dml: str = SCHEMA) -> AbstractEngine:
+    def _create_engine(self, dml_path: Path = PACKAGED_SCHEMA_PATH) -> AbstractEngine:
         if ENGINE_TYPE == EngineType.binary:
-            return QueryEngine(dml=dml, log_queries=self._log_queries, **self._http_config)
+            return QueryEngine(dml_path=dml_path, log_queries=self._log_queries, **self._http_config)
 
         raise NotImplementedError(f'Unsupported engine type: {ENGINE_TYPE}')
 
@@ -405,7 +346,7 @@ class Prisma:
         }
 
     def _make_sqlite_url(self, url: str, *, relative_to: Path = SCHEMA_PATH.parent) -> str:
-        url_path = url.lstrip('file:').lstrip('sqlite:')
+        url_path = removeprefix(removeprefix(url, 'file:'), 'sqlite:')
         if url_path == url:
             return url
 
@@ -460,6 +401,16 @@ class Batch:
             'transaction': True,
         }
         await self.__client._engine.query(dumps(payload))
+
+    def execute_raw(self, query: LiteralString, *args: Any) -> None:
+        self._add(
+            operation='mutation',
+            method='executeRaw',
+            arguments={
+                'query': query,
+                'parameters': args,
+            }
+        )
 
     async def __aenter__(self) -> 'Batch':
         return self

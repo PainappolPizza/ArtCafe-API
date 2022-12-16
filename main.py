@@ -6,14 +6,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 # Database
-from artcafe.database.client import global_clients
+from artcafe.database import supabase, prisma
 
 # import artcafe.dbhandler as db
 
 
 # Typing
 from typing import Dict, Union, Optional
-from artcafe.database.client import Clients
 from gotrue.types import Session, User as AuthUser
 
 # Exported Interfaces
@@ -61,7 +60,7 @@ async def login(credentials: LoginModel):
     """
     Login User and return JWT token
     """
-    session: Optional[Session] = global_clients.supabase.auth.sign_in(
+    session: Optional[Session] = supabase.auth.sign_in(
         email=credentials.email, password=credentials.password
     )
 
@@ -71,11 +70,11 @@ async def login(credentials: LoginModel):
             detail=f"Login failed",
         )
 
-    prisma: Prisma = global_clients.prisma
+    async with prisma as p:
+        user = await p.user.find_first(
+            where={"email": credentials.email}, include={"places": True}
+        )
 
-    user = await prisma.user.find_first(
-        where={"email": credentials.email}, include={"places": True}
-    )
 
     if not user:
         raise HTTPException(
@@ -92,13 +91,16 @@ class RegisterModel(BaseModel):
     name: str
     role: Role
 
+    class Config:
+        use_enum_values = True
+
 
 @app.post("/api/register", response_model=SignOnResponse, tags=["Authentication"])
 async def register(credentials: RegisterModel):
     """
     Register User and return JWT token
     """
-    session: Session = global_clients.supabase.auth.sign_up(
+    session: Session = supabase.auth.sign_up(
         email=credentials.email, password=credentials.password
     )
 
@@ -108,16 +110,16 @@ async def register(credentials: RegisterModel):
             detail=f"Registration failed",
         )
 
-    prisma: Prisma = global_clients.prisma
+    async with prisma as p:
+        user = await p.user.create(
+            data={
+                "email": credentials.email,
+                "name": credentials.name,
+                "role": credentials.role,
+                "score": 0,
+            }
+        )
 
-    user = await prisma.user.create(
-        data={
-            "email": credentials.email,
-            "name": credentials.name,
-            "role": credentials.role,
-            "score": 0,
-        }
-    )
 
     return {"token": session.access_token, "user": user}
 
@@ -131,7 +133,7 @@ async def logout():
     """
     Logout User, revoke JWT token
     """
-    global_clients.supabase.auth.sign_out()
+    supabase.auth.sign_out()
 
     return {"message": "Logout successful"}
 
@@ -147,7 +149,7 @@ async def get_user(user_id: str, token: str):
 
     # Validate token
     try:
-        auth_user: AuthUser = global_clients.supabase.auth.api.get_user(token)
+        auth_user: AuthUser = supabase.auth.api.get_user(token)
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -155,7 +157,7 @@ async def get_user(user_id: str, token: str):
         )
 
     # Get user from database
-    prisma: Prisma = global_clients.prisma
+    await prisma.connect()
 
     user = await prisma.user.find_first(where={"id": user_id}, include={"places": True})
     req_user = await prisma.user.find_first(where={"email": auth_user.email})
@@ -172,6 +174,8 @@ async def get_user(user_id: str, token: str):
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Access denied",
         )
+
+    await prisma.disconnect()
 
     return user
 

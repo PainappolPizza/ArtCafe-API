@@ -6,37 +6,19 @@ from supabase import create_client, Client as Supabase
 
 from dotenv import load_dotenv
 
-from async_property import async_cached_property
-from functools import cached_property
 
 load_dotenv("artcafe/database/.env")
-
-
-class Clients:
-    def __init__(self, url: str, key: str):
-        self.url = url
-        self.key = key
-
-    @cached_property
-    def supabase(self) -> Supabase:
-        supabase: Supabase = create_client(self.url, self.key)
-        return supabase
-
-    @async_cached_property
-    async def prisma(self) -> Prisma:
-        prisma = Prisma()
-        await prisma.connect()
-        return prisma
 
 
 url: Optional[str] = os.environ.get("SUPABASE_URL")
 key: Optional[str] = os.environ.get("SUPABASE_KEY")
 
-
 if not url or not key:
     raise ValueError("Missing environment variables")
 else:
-    global_clients = Clients(url=url, key=key)
+    supabase: Supabase = create_client(
+        supabase_url=url,
+        supabase_key=key,
+    )
 
-
-__all__ = ["Supabase", "Prisma", "global_clients"]
+    prisma = Prisma()
