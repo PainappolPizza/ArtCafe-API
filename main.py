@@ -44,6 +44,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# listen on port 8082
+# uvicorn main:app --reload --port 8082
+
+
 
 class LoginModel(BaseModel):
     email: str
