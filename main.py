@@ -109,7 +109,7 @@ class _Model(BaseModel):
     token: str
 
 
-@app.post("/api/register", response_model=RegisterModel, tags=["Authentication"])
+@app.post("/api/register", response_model=SignOnResponse, tags=["Authentication"])
 async def register(credentials: RegisterModel):
     """
     Register User and return JWT token
