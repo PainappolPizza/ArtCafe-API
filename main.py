@@ -224,7 +224,7 @@ async def create_place(
     except PrismaError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User not found",
+            detail=f"User not found with email: {auth_user.email=}, got {user=}",
         )
 
     if not user.role == Role.Admin:
