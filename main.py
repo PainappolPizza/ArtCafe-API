@@ -106,9 +106,6 @@ class RegisterModel(BaseModel):
     name: str
     role: Role
 
-    class Config:
-        use_enum_values = True
-
 
 @app.post("/api/register", response_model=SignOnResponse, tags=["Authentication"])
 async def register(credentials: RegisterModel):
