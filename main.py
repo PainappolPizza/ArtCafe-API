@@ -246,10 +246,10 @@ async def create_place(
             }
         )
 
-    except PrismaError:
+    except PrismaError as e:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Could not create location",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Could not create location, {e}",
         )
 
     return place
