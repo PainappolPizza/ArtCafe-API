@@ -105,10 +105,6 @@ class RegisterModel(BaseModel):
         use_enum_values = True
 
 
-class _Model(BaseModel):
-    token: str
-
-
 @app.post("/api/register", response_model=SignOnResponse, tags=["Authentication"])
 async def register(credentials: RegisterModel):
     """
@@ -133,8 +129,11 @@ async def register(credentials: RegisterModel):
                 "score": 0,
             }
         )
-    except PrismaError as e:
-        print(f"Error creating user: {e}")
+    except PrismaError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Registration failed",
+        )
 
     return {"token": session.access_token, "user": user}
     # return {"token": session.access_token}
