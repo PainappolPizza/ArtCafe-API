@@ -17,6 +17,7 @@ from gotrue.types import Session, User as AuthUser
 
 # Exported Interfaces
 from prisma import Prisma
+from gotrue.exceptions import APIError
 from prisma.models import User, Place
 from prisma.enums import Role, Importance
 from prisma.errors import PrismaError
@@ -166,10 +167,10 @@ async def get_user(user_id: str, token: str):
     # Validate token
     try:
         auth_user: AuthUser = supabase.auth.api.get_user(token)
-    except Exception:
+    except APIError as e:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Invalid token",
+            detail=f"Invalid JWT token, {e.msg}",
         )
 
     try:
