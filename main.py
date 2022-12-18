@@ -81,9 +81,14 @@ async def login(credentials: LoginModel):
             detail=f"Login failed",
         )
 
-    async with prisma as p:
-        user = await p.user.find_first(
+    try:
+        user = await prisma.user.find_first(
             where={"email": credentials.email}, include={"places": True}
+        )
+    except PrismaError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Login failed",
         )
 
     if not user:
@@ -136,7 +141,6 @@ async def register(credentials: RegisterModel):
         )
 
     return {"token": session.access_token, "user": user}
-    # return {"token": session.access_token}
 
 
 class LogoutResponse(BaseModel):
