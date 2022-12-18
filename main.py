@@ -213,10 +213,10 @@ async def create_place(
 ):
     try:
         auth_user: AuthUser = supabase.auth.api.get_user(token)
-    except Exception:
+    except APIError as e:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Invalid token",
+            detail=f"Invalid JWT token {e.msg}",
         )
 
     try:
