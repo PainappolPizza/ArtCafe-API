@@ -239,7 +239,7 @@ async def create_place(
                 "name": name,
                 "city": city,
                 "country": country,
-                "location": location,
+                "geolocation": location,
                 "importance": importance,
                 "story": story,
                 "uri": uri,
