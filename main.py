@@ -18,7 +18,7 @@ from gotrue.types import Session, User as AuthUser
 # Exported Interfaces
 from prisma import Prisma
 from prisma.models import User, Place
-from prisma.enums import Role
+from prisma.enums import Role, Importance
 from prisma.errors import PrismaError
 
 
@@ -175,11 +175,16 @@ async def get_user(user_id: str, token: str):
             detail=f"Invalid token",
         )
 
-    # Get user from database
-    await prisma.connect()
-
-    user = await prisma.user.find_first(where={"id": user_id}, include={"places": True})
-    req_user = await prisma.user.find_first(where={"email": auth_user.email})
+    try:
+        user = await prisma.user.find_first(
+            where={"id": user_id}, include={"places": True}
+        )
+        req_user = await prisma.user.find_first(where={"email": auth_user.email or ""})
+    except PrismaError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User not found",
+        )
 
     if not user or not req_user:
         raise HTTPException(
@@ -194,9 +199,62 @@ async def get_user(user_id: str, token: str):
             detail=f"Access denied",
         )
 
-    await prisma.disconnect()
-
     return user
+
+
+@app.post("/api/places", response_model=Place, tags=["Place"])
+async def create_place(
+    name: str,
+    city: str,
+    country: str,
+    location: str,
+    importance: Importance,
+    story: str,
+    uri: str,
+    token: str,
+):
+    try:
+        auth_user: AuthUser = supabase.auth.api.get_user(token)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Invalid token",
+        )
+
+    try:
+        user = await prisma.user.find_first(where={"email": auth_user.email or ""})
+    except PrismaError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User not found",
+        )
+
+    if not user.role == Role.Admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Access denied",
+        )
+
+    try:
+        place = await prisma.place.create(
+            data={
+                "name": name,
+                "city": city,
+                "country": country,
+                "location": location,
+                "importance": importance,
+                "story": story,
+                "uri": uri,
+            }
+        )
+
+    except PrismaError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Could not create location",
+        )
+
+    return place
 
 
 @app.get("/")
