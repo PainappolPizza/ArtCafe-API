@@ -5,7 +5,7 @@ from artcafe.models import *
 from artcafe.utils import *
 from artcafe.database import supabase, prisma
 
-from typing import Optional
+from typing import Optional, List
 
 
 app = FastAPI(
@@ -208,6 +208,242 @@ async def create_place(
         )
 
     return place
+
+
+@app.get("/api/places/{city_name}", response_model=List[Place], tags=["Place"])
+async def place_from_city(city_name: str, token: str):
+    """
+    Get all places from a city.
+    Requires authentication.
+    """
+    # Silent validation
+    _ = await user_from(token=token, prisma=prisma, supabase=supabase)
+
+    try:
+        places = await prisma.place.find_many(where={"city": city_name})
+    except PrismaError:
+        raise HTTPException(
+            status_code=HTTPStatus.HTTP_404_NOT_FOUND,
+            detail=f"Places not found",
+        )
+
+    return places
+
+
+@app.get("/api/places/{place_id}", response_model=Place, tags=["Place"])
+async def place_from_id(place_id: str, token: str):
+    """
+    Get a place by id.
+    Requires authentication.
+    """
+    # Silent validation
+    _ = await user_from(token=token, prisma=prisma, supabase=supabase)
+
+    try:
+        place = await prisma.place.find_first(where={"id": place_id})
+    except PrismaError:
+        raise HTTPException(
+            status_code=HTTPStatus.HTTP_404_NOT_FOUND,
+            detail=f"Place not found",
+        )
+
+    return place
+
+
+@app.get("/api/places/{user_id}", response_model=List[Place], tags=["Place"])
+async def place_from_user(user_id: str, token: str):
+    """
+    Get all places from a user.
+    Requires authentication.
+    """
+    # Silent validation
+    _ = await user_from(token=token, prisma=prisma, supabase=supabase)
+
+    try:
+        places = await prisma.place.find_many(where={"user_id": user_id})
+    except PrismaError:
+        raise HTTPException(
+            status_code=HTTPStatus.HTTP_404_NOT_FOUND,
+            detail=f"Places not found",
+        )
+
+    return places
+
+
+@app.get("/api/places/recent", response_model=List[Place], tags=["Place"])
+async def recent_places(token: str):
+    """
+    Get all places from a user.
+    Requires authentication.
+    """
+    # Silent validation
+    _ = await user_from(token=token, prisma=prisma, supabase=supabase)
+
+    try:
+        places = await prisma.place.find_many(take=20, order_by={"created_at": "desc"})
+    except PrismaError:
+        raise HTTPException(
+            status_code=HTTPStatus.HTTP_404_NOT_FOUND,
+            detail=f"Places not found",
+        )
+
+    return places
+
+
+@app.patch("/api/places/{place_id}", response_model=Place, tags=["Place"])
+async def update_place(edits: PlaceUpdateInput, token: str):
+    user = await user_from(token=token, prisma=prisma, supabase=supabase)
+
+    if not user.role == Role.Admin:
+        raise HTTPException(
+            status_code=HTTPStatus.HTTP_403_FORBIDDEN,
+            detail=f"Access denied",
+        )
+
+    try:
+        place = await prisma.place.update(
+            where={"id": edits.id},
+            data={
+                "name": edits.name,
+                "city": edits.city,
+                "country": edits.country,
+                "geolocation": edits.geolocation,
+                "importance": edits.importance,
+                "story": edits.story,
+                "uri": edits.uri,
+            },
+        )
+    except PrismaError as e:
+        raise HTTPException(
+            status_code=HTTPStatus.HTTP_400_BAD_REQUEST,
+            detail=f"Could not update location, {e}",
+        )
+
+    return place
+
+
+@app.delete("/api/places/{place_id}", response_model=Place, tags=["Place"])
+async def delete_place(place_id: str, token: str):
+    user = await user_from(token=token, prisma=prisma, supabase=supabase)
+
+    if not user.role == Role.Admin:
+        raise HTTPException(
+            status_code=HTTPStatus.HTTP_403_FORBIDDEN,
+            detail=f"Access denied",
+        )
+
+    try:
+        place = await prisma.place.delete(where={"id": place_id})
+    except PrismaError as e:
+        raise HTTPException(
+            status_code=HTTPStatus.HTTP_400_BAD_REQUEST,
+            detail=f"Could not delete location, {e}",
+        )
+
+    return place
+
+
+@app.get("/api/users/new_creators", response_model=List[User], tags=["User"])
+async def new_creators(token: str):
+    """
+    Get all new creators.
+    Requires authentication.
+    """
+    # Silent validation
+    _ = await user_from(token=token, prisma=prisma, supabase=supabase)
+
+    try:
+        users = await prisma.user.find_many(where={"role": Role.Creator})
+    except PrismaError:
+        raise HTTPException(
+            status_code=HTTPStatus.HTTP_404_NOT_FOUND,
+            detail=f"Users not found",
+        )
+
+    return users
+
+
+@app.get("/api/users/accounts/{user_email}", response_model=User, tags=["User"])
+async def user_from_email(user_email: str, token: str):
+    """
+    Get user from email.
+    Requires authentication.
+    """
+    # Silent validation
+    _ = await user_from(token=token, prisma=prisma, supabase=supabase)
+
+    try:
+        user = await prisma.user.find_first(where={"email": user_email})
+    except PrismaError:
+        raise HTTPException(
+            status_code=HTTPStatus.HTTP_404_NOT_FOUND,
+            detail=f"User not found",
+        )
+
+    if not user:
+        raise HTTPException(
+            status_code=HTTPStatus.HTTP_404_NOT_FOUND,
+            detail=f"User not found",
+        )
+
+    return user
+
+
+@app.patch("/api/users/{user_id}", response_model=User, tags=["User"])
+async def update_user(edits: UserUpdateInput, token: str):
+    user = await user_from(token=token, prisma=prisma, supabase=supabase)
+
+    if not user.role == Role.Admin:
+        raise HTTPException(
+            status_code=HTTPStatus.HTTP_403_FORBIDDEN,
+            detail=f"Access denied",
+        )
+
+    try:
+        user = await prisma.user.update(
+            where={"id": edits.id},
+            data={**edits},
+        )
+    except PrismaError as e:
+        raise HTTPException(
+            status_code=HTTPStatus.HTTP_400_BAD_REQUEST,
+            detail=f"Could not update user, {e}",
+        )
+
+    if not user:
+        raise HTTPException(
+            status_code=HTTPStatus.HTTP_404_NOT_FOUND,
+            detail=f"User not found",
+        )
+
+    return user
+
+
+@app.delete("/api/users/{user_id}", response_model=User, tags=["User"])
+async def delete_user(user_id: str, token: str):
+    user = await user_from(token=token, prisma=prisma, supabase=supabase)
+
+    if not user.role == Role.Admin:
+        raise HTTPException(
+            status_code=HTTPStatus.HTTP_403_FORBIDDEN,
+            detail=f"Access denied",
+        )
+
+    try:
+        user = await prisma.user.delete(where={"id": user_id})
+    except PrismaError as e:
+        raise HTTPException(
+            status_code=HTTPStatus.HTTP_400_BAD_REQUEST,
+            detail=f"Could not delete user, {e}",
+        )
+
+    if not user:
+        raise HTTPException(
+            status_code=HTTPStatus.HTTP_404_NOT_FOUND,
+            detail=f"User not found",
+        )
+
+    return user
 
 
 @app.get("/")

@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from gotrue.types import Session, User as AuthUser
 from gotrue.exceptions import APIError
 
+from prisma.types import PlaceUpdateInput, UserUpdateInput
 from prisma.models import User, Place
 from prisma.enums import Role, Importance
 from prisma.errors import PrismaError
@@ -49,4 +50,6 @@ __all__ = [
     "SignOnResponse",
     "RegisterModel",
     "LogoutResponse",
+    "PlaceUpdateInput",
+    "UserUpdateInput",
 ]
