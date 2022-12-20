@@ -1,31 +1,17 @@
 from __future__ import annotations
 
-# FastAPI
-from fastapi import FastAPI, Response, Request, status, HTTPException, Header
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 
-# Database
+from artcafe.models import *
+from artcafe.utils import *
 from artcafe.database import supabase, prisma
 
-# JWT
-import jwt
-
-# Typing
-from typing import Dict, Union, Optional
-from gotrue.types import Session, User as AuthUser
-
-# Exported Interfaces
-from gotrue.exceptions import APIError
-from prisma.models import User, Place
-from prisma.enums import Role, Importance
-from prisma.errors import PrismaError
+from typing import Optional
 
 
 app = FastAPI(
     title="ArtCafe API",
     description="REST service for ArtCafe",
-    version="0.0.1",
+    version="0.2.17beta5",
     contact={
         "name": "ArtCafe",
         "url": "http://x-force.example.com/contact/",
@@ -45,8 +31,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-secret = "hI3sM6sZ0/hZj0IHJOjtoNdquv6jc6Dt6JNNYP5DbLBq+qRWNNXQ33WN2nNn38odkbLsKkM/oSmVJIR9aDXPvQ=="
-
 
 @app.on_event("startup")
 async def startup():
@@ -56,31 +40,6 @@ async def startup():
 @app.on_event("shutdown")
 async def shutdown():
     await prisma.disconnect()
-
-
-class LoginModel(BaseModel):
-    email: str
-    password: str
-
-
-class SignOnResponse(BaseModel):
-    token: str
-
-
-def add_user(token: str, user: User) -> str:
-    decoded = jwt.decode(
-        token, options={"verify_signature": False}, algorithms=["HS256"]
-    )
-    decoded["user"] = user.dict()
-    return jwt.encode(decoded, secret)
-
-
-def remove_user(token: str) -> str:
-    decoded = jwt.decode(
-        token, options={"verify_signature": False}, algorithms=["HS256"]
-    )
-    del decoded["user"]
-    return jwt.encode(decoded, secret)
 
 
 @app.post("/api/login", response_model=SignOnResponse, tags=["Authentication"])
@@ -94,7 +53,7 @@ async def login(credentials: LoginModel):
 
     if not session or not session.user:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=HTTPStatus.HTTP_403_FORBIDDEN,
             detail=f"Login failed",
         )
 
@@ -104,26 +63,19 @@ async def login(credentials: LoginModel):
         )
     except PrismaError:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=HTTPStatus.HTTP_403_FORBIDDEN,
             detail=f"Login failed",
         )
 
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=HTTPStatus.HTTP_403_FORBIDDEN,
             detail=f"Login failed",
         )
 
     token = add_user(session.access_token, user)
 
     return {"token": token}
-
-
-class RegisterModel(BaseModel):
-    email: str
-    password: str
-    name: str
-    role: Role
 
 
 @app.post("/api/register", response_model=SignOnResponse, tags=["Authentication"])
@@ -137,7 +89,7 @@ async def register(credentials: RegisterModel):
 
     if not session or not session.user:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=HTTPStatus.HTTP_403_FORBIDDEN,
             detail=f"Registration failed",
         )
 
@@ -152,17 +104,13 @@ async def register(credentials: RegisterModel):
         )
     except PrismaError:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=HTTPStatus.HTTP_403_FORBIDDEN,
             detail=f"Registration failed",
         )
 
     token = add_user(session.access_token, user)
 
     return {"token": token}
-
-
-class LogoutResponse(BaseModel):
-    message: str
 
 
 @app.post("/api/logout", response_model=LogoutResponse, tags=["Authentication"])
@@ -190,7 +138,7 @@ async def get_user(user_id: str, token: str):
         auth_user: AuthUser = supabase.auth.api.get_user(jwt=token)
     except APIError as e:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=HTTPStatus.HTTP_403_FORBIDDEN,
             detail=f"Invalid JWT token, {e.msg}",
         )
 
@@ -201,20 +149,20 @@ async def get_user(user_id: str, token: str):
         req_user = await prisma.user.find_first(where={"email": auth_user.email or ""})
     except PrismaError:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=HTTPStatus.HTTP_404_NOT_FOUND,
             detail=f"User not found",
         )
 
     if not user or not req_user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=HTTPStatus.HTTP_404_NOT_FOUND,
             detail=f"User not found",
         )
 
     # Check if user is allowed to access this user
     if (req_user.role != Role.Admin) or (req_user.email != user.email):
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=HTTPStatus.HTTP_403_FORBIDDEN,
             detail=f"Access denied",
         )
 
@@ -232,26 +180,11 @@ async def create_place(
     uri: str,
     token: str,
 ):
-    try:
-        token = remove_user(token)
-        auth_user: AuthUser = supabase.auth.api.get_user(jwt=token)
-    except APIError as e:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Invalid JWT token {e.msg}",
-        )
-
-    try:
-        user = await prisma.user.find_first(where={"email": auth_user.email or ""})
-    except PrismaError:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User not found with email: {auth_user.email=}, got {user=}",
-        )
+    user = await user_from(token=token, prisma=prisma, supabase=supabase)
 
     if not user.role == Role.Admin:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=HTTPStatus.HTTP_403_FORBIDDEN,
             detail=f"Access denied",
         )
 
@@ -270,7 +203,7 @@ async def create_place(
 
     except PrismaError as e:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=HTTPStatus.HTTP_400_BAD_REQUEST,
             detail=f"Could not create location, {e}",
         )
 
