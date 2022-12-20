@@ -8,15 +8,14 @@ from pydantic import BaseModel
 # Database
 from artcafe.database import supabase, prisma
 
-# import artcafe.dbhandler as db
-
+# JWT
+import jwt
 
 # Typing
 from typing import Dict, Union, Optional
 from gotrue.types import Session, User as AuthUser
 
 # Exported Interfaces
-from prisma import Prisma
 from gotrue.exceptions import APIError
 from prisma.models import User, Place
 from prisma.enums import Role, Importance
@@ -46,6 +45,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+secret = "hI3sM6sZ0/hZj0IHJOjtoNdquv6jc6Dt6JNNYP5DbLBq+qRWNNXQ33WN2nNn38odkbLsKkM/oSmVJIR9aDXPvQ=="
+
 
 @app.on_event("startup")
 async def startup():
@@ -64,7 +65,22 @@ class LoginModel(BaseModel):
 
 class SignOnResponse(BaseModel):
     token: str
-    user: User
+
+
+def add_user(token: str, user: User) -> str:
+    decoded = jwt.decode(
+        token, options={"verify_signature": False}, algorithms=["HS256"]
+    )
+    decoded["user"] = user
+    return jwt.encode(decoded, secret)
+
+
+def remove_user(token: str) -> str:
+    decoded = jwt.decode(
+        token, options={"verify_signature": False}, algorithms=["HS256"]
+    )
+    del decoded["user"]
+    return jwt.encode(decoded, secret)
 
 
 @app.post("/api/login", response_model=SignOnResponse, tags=["Authentication"])
@@ -98,7 +114,9 @@ async def login(credentials: LoginModel):
             detail=f"Login failed",
         )
 
-    return {"token": session.access_token, "user": user}
+    token = add_user(session.access_token, user)
+
+    return {"token": token}
 
 
 class RegisterModel(BaseModel):
@@ -138,7 +156,9 @@ async def register(credentials: RegisterModel):
             detail=f"Registration failed",
         )
 
-    return {"token": session.access_token, "user": user}
+    token = add_user(session.access_token, user)
+
+    return {"token": token}
 
 
 class LogoutResponse(BaseModel):
@@ -166,6 +186,7 @@ async def get_user(user_id: str, token: str):
 
     # Validate token
     try:
+        token = remove_user(token)
         auth_user: AuthUser = supabase.auth.api.get_user(jwt=token)
     except APIError as e:
         raise HTTPException(
@@ -212,6 +233,7 @@ async def create_place(
     token: str,
 ):
     try:
+        token = remove_user(token)
         auth_user: AuthUser = supabase.auth.api.get_user(jwt=token)
     except APIError as e:
         raise HTTPException(

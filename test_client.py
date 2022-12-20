@@ -1,69 +1,26 @@
-from __future__ import annotations
+import jwt
+from prisma.models import User
 
-import requests
-from main import RegisterModel, LoginModel, LogoutModel, Role
-from pprint import pprint
-
-base_url = "https://xgqxhw.deta.dev"
+token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNjcxNTI5MTE5LCJzdWIiOiJhMjE1YjNkMy1lODVjLTRkYzgtOGFkMy1jNTUxY2ZhM2E2NzEiLCJlbWFpbCI6ImFkbWluQGFydGNhZmUuYXQiLCJwaG9uZSI6IiIsImFwcF9tZXRhZGF0YSI6eyJwcm92aWRlciI6ImVtYWlsIiwicHJvdmlkZXJzIjpbImVtYWlsIl19LCJ1c2VyX21ldGFkYXRhIjp7fSwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJwYXNzd29yZCIsInRpbWVzdGFtcCI6MTY3MTUyNTUxOX1dLCJzZXNzaW9uX2lkIjoiNTg0NmQwOWQtOTM3NC00OTU4LWI2ZGItNDZhNDExODVlNzBkIn0.syZDOSx1ViRuGiOzKmrb_0g5lOGVevVwx8IYt9-35jM"
+secret = "hI3sM6sZ0/hZj0IHJOjtoNdquv6jc6Dt6JNNYP5DbLBq+qRWNNXQ33WN2nNn38odkbLsKkM/oSmVJIR9aDXPvQ=="
 
 
-def make_user():
-    email = input("Enter email: ")
-    password = input("Enter password: ")
-    name = input("Enter name: ")
-    role = Role.User
-
-    """
-    Use the requests module to make a request to the API's register endpoint
-    """
-    response = requests.post(
-        f"{base_url}/api/register",
-        json={
-            "email": email,
-            "password": password,
-            "name": name,
-            "role": role,
-        },
-    )
-
-    if response.status_code == 200:
-        print("User created successfully")
-        print(response.json())
-    else:
-        print("Failed to create user")
-        print(response.json())
+def add_user(token: str, user: User) -> str:
+    decoded = jwt.decode(token, options={"verify_signature": False}, algorithms=["HS256"])
+    decoded["user"] = user
+    return jwt.encode(decoded, secret)
 
 
-def login():
-    email = input("Email: ")
-    password = input("Password: ")
-
-    response = requests.post(
-        f"{base_url}/api/login",
-        json={
-            "email": email,
-            "password": password,
-        },
-    )
-
-    if response.status_code == 200:
-        print("Login successful")
-        print(response.json())
-
-    else:
-        print("Login failed")
-        print(response.status_code)
+def remove_user(token: str) -> str:
+    decoded = jwt.decode(token, options={"verify_signature": False},  algorithms=["HS256"])
+    del decoded["user"]
+    return jwt.encode(decoded, secret)
 
 
-def logout():
-    response = requests.post(
-        f"{base_url}/api/logout",
-    )
+added = add_user(token, {"name": "test"})
+print(added)
 
-    if response.status_code == 200:
-        print("Logout successful")
-        pprint(response.json())
+removed = remove_user(added)
+print(removed)
 
-    else:
-        print("Logout failed")
-        print(response.status_code)
+assert removed == token
