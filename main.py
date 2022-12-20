@@ -71,7 +71,7 @@ def add_user(token: str, user: User) -> str:
     decoded = jwt.decode(
         token, options={"verify_signature": False}, algorithms=["HS256"]
     )
-    decoded["user"] = user
+    decoded["user"] = user.dict()
     return jwt.encode(decoded, secret)
 
 
