@@ -38,7 +38,7 @@ async def user_from(*, token: str, supabase: Client, prisma: Prisma) -> User:
         )
 
     try:
-        user = await prisma.user.find_unique(where={"email": auth_user.email})
+        user = await prisma.user.find_first(where={"email": auth_user.email})
     except PrismaError as e:
         raise HTTPException(
             status_code=HTTPStatus.HTTP_404_NOT_FOUND,
