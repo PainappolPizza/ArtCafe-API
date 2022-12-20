@@ -42,7 +42,7 @@ async def user_from(*, token: str, supabase: Client, prisma: Prisma) -> User:
     except PrismaError as e:
         raise HTTPException(
             status_code=HTTPStatus.HTTP_404_NOT_FOUND,
-            detail=f"User not found, no such email",
+            detail=f"User not found, no such email {auth_user.email}",
         )
 
     if not user:
