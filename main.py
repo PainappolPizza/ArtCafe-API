@@ -5,13 +5,11 @@ from artcafe.models import *
 from artcafe.utils import *
 from artcafe.database import supabase, prisma
 
-from typing import Optional, List
-
 
 app = FastAPI(
     title="ArtCafe API",
     description="REST service for ArtCafe",
-    version="0.2.17beta5",
+    version="0.2.17beta6",
     contact={
         "name": "ArtCafe",
         "url": "http://x-force.example.com/contact/",
@@ -47,7 +45,7 @@ async def login(credentials: LoginModel):
     """
     Login User and return JWT token
     """
-    session: Optional[Session] = supabase.auth.sign_in(
+    session: Session | None = supabase.auth.sign_in(
         email=credentials.email, password=credentials.password
     )
 
@@ -169,48 +167,7 @@ async def get_user(user_id: str, token: str):
     return user
 
 
-@app.post("/api/places", response_model=Place, tags=["Place"])
-async def create_place(
-    name: str,
-    city: str,
-    country: str,
-    location: str,
-    importance: Importance,
-    story: str,
-    uri: str,
-    token: str,
-):
-    user = await user_from(token=token, prisma=prisma, supabase=supabase)
-
-    if not user.role == Role.Admin:
-        raise HTTPException(
-            status_code=HTTPStatus.HTTP_403_FORBIDDEN,
-            detail=f"Access denied",
-        )
-
-    try:
-        place = await prisma.place.create(
-            data={
-                "name": name,
-                "city": city,
-                "country": country,
-                "geolocation": location,
-                "importance": importance,
-                "story": story,
-                "uri": uri,
-            }
-        )
-
-    except PrismaError as e:
-        raise HTTPException(
-            status_code=HTTPStatus.HTTP_400_BAD_REQUEST,
-            detail=f"Could not create location, {e}",
-        )
-
-    return place
-
-
-@app.get("/api/places/{city_name}", response_model=List[Place], tags=["Place"])
+@app.get("/api/places/{city_name}", response_model=list[Place], tags=["Place"])
 async def place_from_city(city_name: str, token: str):
     """
     Get all places from a city.
@@ -250,7 +207,7 @@ async def place_from_id(place_id: str, token: str):
     return place
 
 
-@app.get("/api/places/{user_id}", response_model=List[Place], tags=["Place"])
+@app.get("/api/places/{user_id}", response_model=list[Place], tags=["Place"])
 async def place_from_user(user_id: str, token: str):
     """
     Get all places from a user.
@@ -270,7 +227,7 @@ async def place_from_user(user_id: str, token: str):
     return places
 
 
-@app.get("/api/places/recent", response_model=List[Place], tags=["Place"])
+@app.get("/api/places/recent", response_model=list[Place], tags=["Place"])
 async def recent_places(token: str):
     """
     Get all places from a user.
@@ -288,6 +245,47 @@ async def recent_places(token: str):
         )
 
     return places
+
+
+@app.post("/api/places", response_model=Place, tags=["Place"])
+async def create_place(
+    name: str,
+    city: str,
+    country: str,
+    location: str,
+    importance: Importance,
+    story: str,
+    uri: str,
+    token: str,
+):
+    user = await user_from(token=token, prisma=prisma, supabase=supabase)
+
+    if not user.role == Role.Admin:
+        raise HTTPException(
+            status_code=HTTPStatus.HTTP_403_FORBIDDEN,
+            detail=f"Access denied",
+        )
+
+    try:
+        place = await prisma.place.create(
+            data={
+                "name": name,
+                "city": city,
+                "country": country,
+                "geolocation": location,
+                "importance": importance,
+                "story": story,
+                "uri": uri,
+            }
+        )
+
+    except PrismaError as e:
+        raise HTTPException(
+            status_code=HTTPStatus.HTTP_400_BAD_REQUEST,
+            detail=f"Could not create location, {e}",
+        )
+
+    return place
 
 
 @app.patch("/api/places/{place_id}", response_model=Place, tags=["Place"])
@@ -343,7 +341,7 @@ async def delete_place(place_id: str, token: str):
     return place
 
 
-@app.get("/api/users/new_creators", response_model=List[User], tags=["User"])
+@app.get("/api/users/new_creators", response_model=list[User], tags=["User"])
 async def new_creators(token: str):
     """
     Get all new creators.
