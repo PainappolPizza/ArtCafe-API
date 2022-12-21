@@ -261,7 +261,17 @@ async def create_place(
         )
 
     try:
-        place = await prisma.place.create(data=place_data)
+        place = await prisma.place.create(
+            data={
+                "name": place_data.name,
+                "city": place_data.city,
+                "country": place_data.country,
+                "geolocation": place_data.geolocation,
+                "importance": place_data.importance,
+                "story": place_data.story,
+                "uri": place_data.uri,
+            }
+        )
 
     except PrismaError as e:
         raise HTTPException(
