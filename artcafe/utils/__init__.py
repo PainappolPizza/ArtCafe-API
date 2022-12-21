@@ -1,4 +1,8 @@
+from __future__ import annotations
+
+
 import jwt
+import os
 
 from fastapi import HTTPException, status as HTTPStatus
 from gotrue.exceptions import APIError
@@ -8,7 +12,14 @@ from prisma.errors import PrismaError
 from prisma.models import User
 from supabase.client import Client
 
-secret = "hI3sM6sZ0/hZj0IHJOjtoNdquv6jc6Dt6JNNYP5DbLBq+qRWNNXQ33WN2nNn38odkbLsKkM/oSmVJIR9aDXPvQ=="
+from dotenv import load_dotenv
+
+load_dotenv()
+
+secret = os.environ.get("SECRET")
+
+if not secret:
+    raise ValueError("Missing environment variables")
 
 
 def add_user(token: str, user: User) -> str:
