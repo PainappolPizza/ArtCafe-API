@@ -249,13 +249,7 @@ async def recent_places(token: str):
 
 @app.post("/api/places", response_model=Place, tags=["Place"])
 async def create_place(
-    name: str,
-    city: str,
-    country: str,
-    location: str,
-    importance: Importance,
-    story: str,
-    uri: str,
+    place_data: PlaceCreateInput,
     token: str,
 ):
     user = await user_from(token=token, prisma=prisma, supabase=supabase)
@@ -269,13 +263,7 @@ async def create_place(
     try:
         place = await prisma.place.create(
             data={
-                "name": name,
-                "city": city,
-                "country": country,
-                "geolocation": location,
-                "importance": importance,
-                "story": story,
-                "uri": uri,
+                **place_data,
             }
         )
 
