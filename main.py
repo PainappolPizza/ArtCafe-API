@@ -237,7 +237,8 @@ async def recent_places(token: str):
     _ = await user_from(token=token, prisma=prisma, supabase=supabase)
 
     try:
-        places = await prisma.place.find_many(take=20, order={"createdAt": "desc"})
+        # Take the last 12 places (in chronological order)
+        places = await prisma.place.find_many(take=12, order={"createdAt": "desc"})
     except PrismaError:
         raise HTTPException(
             status_code=HTTPStatus.HTTP_404_NOT_FOUND,
