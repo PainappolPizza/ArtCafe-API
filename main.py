@@ -261,11 +261,7 @@ async def create_place(
         )
 
     try:
-        place = await prisma.place.create(
-            data={
-                **place_data,
-            }
-        )
+        place = await prisma.place.create(data=place_data)
 
     except PrismaError as e:
         raise HTTPException(
