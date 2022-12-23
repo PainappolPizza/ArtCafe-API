@@ -103,7 +103,7 @@ async def register(credentials: RegisterModel):
     except PrismaError:
         raise HTTPException(
             status_code=HTTPStatus.HTTP_403_FORBIDDEN,
-            detail=f"Registration failed",
+            detail=f"Registration failed, cannot create user",
         )
 
     token = add_user(session.access_token, user)
