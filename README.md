@@ -2,21 +2,12 @@
 
 ## Geocaching with extra steps (and coffee!)
 
+ArtCafe is a geocaching app that allows you to find and create geocaches.
+It is a work in progress, and is currently in the alpha stage. 
+It is not yet ready for production use.
 
-### Run the project locally:
+Build for the Software Engineering course @FH IMC Krems.
 
-```bash
-uvicorn server:app --reload
-```
-
-### Install as a package
-
-```bash
-make install
-```
-
-### Deploy to edge (Coming soon!)
-
-```bash
-vercel
-```
+### Test the API at:
+* [deployment](https://artcafe-api-production.up.railway.app/docs)
+* [locally]('https://www.uvicorn.org')
