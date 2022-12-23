@@ -100,10 +100,10 @@ async def register(credentials: RegisterModel):
                 "score": 0,
             }
         )
-    except PrismaError:
+    except MissingRequiredValueError as e:
         raise HTTPException(
             status_code=HTTPStatus.HTTP_403_FORBIDDEN,
-            detail=f"Registration failed, cannot create user",
+            detail=f"Registration failed, cannot create user, {e}",
         )
 
     token = add_user(session.access_token, user)

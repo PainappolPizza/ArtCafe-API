@@ -9,7 +9,7 @@ from gotrue.exceptions import APIError
 from prisma.types import PlaceUpdateInput, UserUpdateInput
 from prisma.models import User, Place
 from prisma.enums import Role, Importance
-from prisma.errors import PrismaError
+from prisma.errors import PrismaError, MissingRequiredValueError
 
 
 class LoginModel(BaseModel):
@@ -63,4 +63,5 @@ __all__ = [
     "PlaceUpdateInput",
     "UserUpdateInput",
     "PlaceCreateInput",
+    "MissingRequiredValueError",
 ]
