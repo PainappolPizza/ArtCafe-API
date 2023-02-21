@@ -5,7 +5,7 @@ import jwt
 import os
 
 from fastapi import HTTPException, status as HTTPStatus
-from gotrue.exceptions import APIError
+from gotrue.errors import AuthError
 
 from prisma import Prisma
 from prisma.errors import PrismaError
@@ -43,7 +43,7 @@ async def user_from(*, token: str, supabase: Client, prisma: Prisma) -> User:
     try:
         token = remove_user(token)
         auth_user = supabase.auth.api.get_user(jwt=token)
-    except APIError as e:
+    except AuthError as e:
         raise HTTPException(
             status_code=HTTPStatus.HTTP_403_FORBIDDEN,
             detail=f"Invalid JWT token, {e.msg}",

@@ -4,10 +4,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from gotrue.types import Session, User as AuthUser
-from gotrue.exceptions import APIError
+from gotrue.errors import AuthError
 
-from prisma.types import PlaceUpdateInput, UserUpdateInput
-from prisma.models import User, Place
+from prisma.types import UserUpdateInput
+from prisma.models import User
 from prisma.enums import Role, Importance
 from prisma.errors import PrismaError, MissingRequiredValueError
 
@@ -49,9 +49,8 @@ __all__ = [
     "BaseModel",
     "Session",
     "AuthUser",
-    "APIError",
+    "AuthError",
     "User",
-    "Place",
     "Role",
     "Importance",
     "PrismaError",
@@ -60,7 +59,6 @@ __all__ = [
     "SignOnResponse",
     "RegisterModel",
     "LogoutResponse",
-    "PlaceUpdateInput",
     "UserUpdateInput",
     "PlaceCreateInput",
     "MissingRequiredValueError",

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from artcafe.models import *
 from artcafe.utils import *
@@ -40,16 +42,16 @@ async def shutdown():
     await prisma.disconnect()
 
 
-@app.post("/api/login", response_model=SignOnResponse, tags=["Authentication"])
-async def login(credentials: LoginModel):
+@app.post("/api/login", tags=["Authentication"])
+async def login(credentials: LoginModel) -> SignOnResponse:
     """
     Login User and return JWT token
     """
-    session: Session | None = supabase.auth.sign_in(
-        email=credentials.email, password=credentials.password
+    session = supabase.auth.sign_in_with_password(
+        { "email": credentials.email, "password": credentials.password }
     )
 
-    if not session or not session.user:
+    if not session.user or not session.session:
         raise HTTPException(
             status_code=HTTPStatus.HTTP_403_FORBIDDEN,
             detail=f"Login failed",
@@ -71,21 +73,21 @@ async def login(credentials: LoginModel):
             detail=f"Login failed",
         )
 
-    token = add_user(session.access_token, user)
+    token = add_user(session.session.access_token, user)
 
-    return {"token": token}
+    return SignOnResponse(token=token)
 
 
-@app.post("/api/register", response_model=SignOnResponse, tags=["Authentication"])
-async def register(credentials: RegisterModel):
+@app.post("/api/register", tags=["Authentication"])
+async def register(credentials: RegisterModel) -> SignOnResponse:
     """
     Register User and return JWT token
     """
-    session: Session = supabase.auth.sign_up(
-        email=credentials.email, password=credentials.password
+    session = supabase.auth.sign_up(
+        {"email": credentials.email, "password": credentials.password}
     )
 
-    if not session or not session.user:
+    if not session.session or not session.user:
         raise HTTPException(
             status_code=HTTPStatus.HTTP_403_FORBIDDEN,
             detail=f"Registration failed",
@@ -106,23 +108,23 @@ async def register(credentials: RegisterModel):
             detail=f"Registration failed, cannot create user, {e}",
         )
 
-    token = add_user(session.access_token, user)
+    token = add_user(session.session.access_token, user)
 
-    return {"token": token}
+    return SignOnResponse(token=token)
 
 
-@app.post("/api/logout", response_model=LogoutResponse, tags=["Authentication"])
-async def logout():
+@app.post("/api/logout", tags=["Authentication"])
+async def logout() -> LogoutResponse:
     """
     Logout User, revoke JWT token
     """
     supabase.auth.sign_out()
 
-    return {"message": "Logout successful"}
+    return LogoutResponse(message="Logged out successfully")
 
 
-@app.get("/api/user/{user_id}", response_model=User, tags=["User"])
-async def get_user(user_id: str, token: str):
+@app.get("/api/user/{user_id}", tags=["User"])
+async def get_user(user_id: str, token: str) -> User:
     """
     Get details of a user by id.
     Requires authentication.
@@ -133,8 +135,8 @@ async def get_user(user_id: str, token: str):
     # Validate token
     try:
         token = remove_user(token)
-        auth_user: AuthUser = supabase.auth.api.get_user(jwt=token)
-    except APIError as e:
+        auth_user: AuthUser = supabase.auth.get_user(jwt=token)
+    except AuthError as e:
         raise HTTPException(
             status_code=HTTPStatus.HTTP_403_FORBIDDEN,
             detail=f"Invalid JWT token, {e.msg}",
@@ -166,178 +168,8 @@ async def get_user(user_id: str, token: str):
 
     return user
 
-
-@app.get("/api/places/{city_name}", response_model=list[Place], tags=["Place"])
-async def place_from_city(city_name: str, token: str):
-    """
-    Get all places from a city.
-    Requires authentication.
-    """
-    # Silent validation
-    _ = await user_from(token=token, prisma=prisma, supabase=supabase)
-
-    try:
-        places = await prisma.place.find_many(where={"city": city_name})
-    except PrismaError:
-        raise HTTPException(
-            status_code=HTTPStatus.HTTP_404_NOT_FOUND,
-            detail=f"Places not found",
-        )
-
-    return places
-
-
-@app.get("/api/places/{place_id}", response_model=Place, tags=["Place"])
-async def place_from_id(place_id: str, token: str):
-    """
-    Get a place by id.
-    Requires authentication.
-    """
-    # Silent validation
-    _ = await user_from(token=token, prisma=prisma, supabase=supabase)
-
-    try:
-        place = await prisma.place.find_first(where={"id": place_id})
-    except PrismaError:
-        raise HTTPException(
-            status_code=HTTPStatus.HTTP_404_NOT_FOUND,
-            detail=f"Place not found",
-        )
-
-    return place
-
-
-@app.get("/api/places/{user_id}", response_model=list[Place], tags=["Place"])
-async def place_from_user(user_id: str, token: str):
-    """
-    Get all places from a user.
-    Requires authentication.
-    """
-    # Silent validation
-    _ = await user_from(token=token, prisma=prisma, supabase=supabase)
-
-    try:
-        places = await prisma.place.find_many(where={"user_id": user_id})
-    except PrismaError:
-        raise HTTPException(
-            status_code=HTTPStatus.HTTP_404_NOT_FOUND,
-            detail=f"Places not found",
-        )
-
-    return places
-
-
-@app.get("/api/places/recent", response_model=list[Place], tags=["Place"])
-async def recent_places(token: str):
-    """
-    Get all places from a user.
-    Requires authentication.
-    """
-    # Silent validation
-    _ = await user_from(token=token, prisma=prisma, supabase=supabase)
-
-    try:
-        # Take the last 12 places (in chronological order)
-        places = await prisma.place.find_many(take=12, order={"createdAt": "desc"})
-    except PrismaError:
-        raise HTTPException(
-            status_code=HTTPStatus.HTTP_404_NOT_FOUND,
-            detail=f"Places not found",
-        )
-
-    return places
-
-
-@app.post("/api/places", response_model=Place, tags=["Place"])
-async def create_place(
-    place_data: PlaceCreateInput,
-    token: str,
-):
-    user = await user_from(token=token, prisma=prisma, supabase=supabase)
-
-    if not user.role == Role.Admin:
-        raise HTTPException(
-            status_code=HTTPStatus.HTTP_403_FORBIDDEN,
-            detail=f"Access denied",
-        )
-
-    try:
-        place = await prisma.place.create(
-            data={
-                "name": place_data.name,
-                "city": place_data.city,
-                "country": place_data.country,
-                "geolocation": place_data.geolocation,
-                "importance": place_data.importance,
-                "story": place_data.story,
-                "uri": place_data.uri,
-            }
-        )
-
-    except PrismaError as e:
-        raise HTTPException(
-            status_code=HTTPStatus.HTTP_400_BAD_REQUEST,
-            detail=f"Could not create location, {e}",
-        )
-
-    return place
-
-
-@app.patch("/api/places/{place_id}", response_model=Place, tags=["Place"])
-async def update_place(edits: PlaceUpdateInput, token: str):
-    user = await user_from(token=token, prisma=prisma, supabase=supabase)
-
-    if not user.role == Role.Admin:
-        raise HTTPException(
-            status_code=HTTPStatus.HTTP_403_FORBIDDEN,
-            detail=f"Access denied",
-        )
-
-    try:
-        place = await prisma.place.update(
-            where={"id": edits.id},
-            data={
-                "name": edits.name,
-                "city": edits.city,
-                "country": edits.country,
-                "geolocation": edits.geolocation,
-                "importance": edits.importance,
-                "story": edits.story,
-                "uri": edits.uri,
-            },
-        )
-    except PrismaError as e:
-        raise HTTPException(
-            status_code=HTTPStatus.HTTP_400_BAD_REQUEST,
-            detail=f"Could not update location, {e}",
-        )
-
-    return place
-
-
-@app.delete("/api/places/{place_id}", response_model=Place, tags=["Place"])
-async def delete_place(place_id: str, token: str):
-    user = await user_from(token=token, prisma=prisma, supabase=supabase)
-
-    if not user.role == Role.Admin:
-        raise HTTPException(
-            status_code=HTTPStatus.HTTP_403_FORBIDDEN,
-            detail=f"Access denied",
-        )
-
-    try:
-        place = await prisma.place.delete(where={"id": place_id})
-    except PrismaError as e:
-        raise HTTPException(
-            status_code=HTTPStatus.HTTP_400_BAD_REQUEST,
-            detail=f"Could not delete location, {e}",
-        )
-
-    return place
-
-
-@app.get("/api/users/new_creators", response_model=list[User], tags=["User"])
-async def new_creators(token: str):
+@app.get("/api/users/new_creators", tags=["User"])
+async def new_creators(token: str) -> list[User]:
     """
     Get all new creators.
     Requires authentication.
@@ -356,8 +188,8 @@ async def new_creators(token: str):
     return users
 
 
-@app.get("/api/users/accounts/{user_email}", response_model=User, tags=["User"])
-async def user_from_email(user_email: str, token: str):
+@app.get("/api/users/accounts/{user_email}", tags=["User"])
+async def user_from_email(user_email: str, token: str) -> User:
     """
     Get user from email.
     Requires authentication.
@@ -382,8 +214,8 @@ async def user_from_email(user_email: str, token: str):
     return user
 
 
-@app.patch("/api/users/{user_id}", response_model=User, tags=["User"])
-async def update_user(edits: UserUpdateInput, token: str):
+@app.patch("/api/users/{user_id}", tags=["User"])
+async def update_user(edits: UserUpdateInput, token: str) -> User:
     user = await user_from(token=token, prisma=prisma, supabase=supabase)
 
     if not user.role == Role.Admin:
@@ -394,7 +226,7 @@ async def update_user(edits: UserUpdateInput, token: str):
 
     try:
         user = await prisma.user.update(
-            where={"id": edits.id},
+            where={"id": user.id},
             data={**edits},
         )
     except PrismaError as e:
@@ -412,8 +244,8 @@ async def update_user(edits: UserUpdateInput, token: str):
     return user
 
 
-@app.delete("/api/users/{user_id}", response_model=User, tags=["User"])
-async def delete_user(user_id: str, token: str):
+@app.delete("/api/users/{user_id}", tags=["User"])
+async def delete_user(user_id: str, token: str) -> User:
     user = await user_from(token=token, prisma=prisma, supabase=supabase)
 
     if not user.role == Role.Admin:
