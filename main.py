@@ -59,7 +59,7 @@ async def login(credentials: LoginModel) -> SignOnResponse:
 
     try:
         user = await prisma.user.find_first(
-            where={"email": credentials.email}, include={"places": True}
+            where={"email": credentials.email},
         )
     except PrismaError:
         raise HTTPException(
@@ -95,12 +95,7 @@ async def register(credentials: RegisterModel) -> SignOnResponse:
 
     try:
         user = await prisma.user.create(
-            data={
-                "email": credentials.email,
-                "name": credentials.name,
-                "role": credentials.role,
-                "score": 0,
-            }
+            data=credentials.data
         )
     except PrismaError as e:
         raise HTTPException(
@@ -135,32 +130,38 @@ async def get_user(user_id: str, token: str) -> User:
     # Validate token
     try:
         token = remove_user(token)
-        auth_user: AuthUser = supabase.auth.get_user(jwt=token)
+        admin = supabase.auth.get_user(jwt=token)
     except AuthError as e:
         raise HTTPException(
             status_code=HTTPStatus.HTTP_403_FORBIDDEN,
-            detail=f"Invalid JWT token, {e.msg}",
+            detail=f"Invalid JWT token, {e!r}",
+        )
+    
+    if not admin.user or not admin.user.email:
+        raise HTTPException(
+            status_code=HTTPStatus.HTTP_403_FORBIDDEN,
+            detail=f"Invalid JWT token, {admin!r}",
         )
 
     try:
         user = await prisma.user.find_first(
-            where={"id": user_id}, include={"places": True}
+            where={"id": user_id},
         )
-        req_user = await prisma.user.find_first(where={"email": auth_user.email or ""})
+        superuser = await prisma.user.find_first(where={"email": admin.user.email})
     except PrismaError:
         raise HTTPException(
             status_code=HTTPStatus.HTTP_404_NOT_FOUND,
             detail=f"User not found",
         )
 
-    if not user or not req_user:
+    if not user or not superuser:
         raise HTTPException(
             status_code=HTTPStatus.HTTP_404_NOT_FOUND,
             detail=f"User not found",
         )
 
     # Check if user is allowed to access this user
-    if (req_user.role != Role.Admin) or (req_user.email != user.email):
+    if (superuser.role != Role.ADMIN) and (user.id != superuser.id):
         raise HTTPException(
             status_code=HTTPStatus.HTTP_403_FORBIDDEN,
             detail=f"Access denied",
@@ -178,7 +179,7 @@ async def new_creators(token: str) -> list[User]:
     _ = await user_from(token=token, prisma=prisma, supabase=supabase)
 
     try:
-        users = await prisma.user.find_many(where={"role": Role.Creator})
+        users = await prisma.user.find_many(where={"role": Role.USER})
     except PrismaError:
         raise HTTPException(
             status_code=HTTPStatus.HTTP_404_NOT_FOUND,
@@ -218,7 +219,7 @@ async def user_from_email(user_email: str, token: str) -> User:
 async def update_user(edits: UserUpdateInput, token: str) -> User:
     user = await user_from(token=token, prisma=prisma, supabase=supabase)
 
-    if not user.role == Role.Admin:
+    if not user.role == Role.ADMIN:
         raise HTTPException(
             status_code=HTTPStatus.HTTP_403_FORBIDDEN,
             detail=f"Access denied",
@@ -227,7 +228,7 @@ async def update_user(edits: UserUpdateInput, token: str) -> User:
     try:
         user = await prisma.user.update(
             where={"id": user.id},
-            data={**edits},
+            data=edits,
         )
     except PrismaError as e:
         raise HTTPException(
@@ -248,7 +249,7 @@ async def update_user(edits: UserUpdateInput, token: str) -> User:
 async def delete_user(user_id: str, token: str) -> User:
     user = await user_from(token=token, prisma=prisma, supabase=supabase)
 
-    if not user.role == Role.Admin:
+    if not user.role == Role.ADMIN:
         raise HTTPException(
             status_code=HTTPStatus.HTTP_403_FORBIDDEN,
             detail=f"Access denied",

@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from gotrue.types import Session, User as AuthUser
 from gotrue.errors import AuthError
 
-from prisma.types import UserUpdateInput
+from prisma.types import UserUpdateInput, UserCreateInput
 from prisma.models import User
 from prisma.enums import Role, Importance
 from prisma.errors import PrismaError, MissingRequiredValueError
@@ -24,8 +24,8 @@ class SignOnResponse(BaseModel):
 class RegisterModel(BaseModel):
     email: str
     password: str
-    name: str
     role: Role
+    data: UserCreateInput
 
 
 class LogoutResponse(BaseModel):
@@ -62,4 +62,5 @@ __all__ = [
     "UserUpdateInput",
     "PlaceCreateInput",
     "MissingRequiredValueError",
+    "UserCreateInput",
 ]
