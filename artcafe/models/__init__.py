@@ -3,29 +3,49 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from pydantic import BaseModel
 
-from gotrue.types import Session, User as AuthUser
+from gotrue.types import (
+    AuthResponse,
+    User as AuthUser,
+    SignInWithEmailAndPasswordCredentials as SignInData,
+    SignUpWithEmailAndPasswordCredentials as SignUpData,
+)
 from gotrue.errors import AuthError
 
-from prisma.types import UserUpdateInput, UserCreateInput
+from prisma.types import UserUpdateInput, UserCreateWithoutRelationsInput
 from prisma.models import User
-from prisma.enums import Role, Importance
+from prisma.enums import Role, Importance, Gender
 from prisma.errors import PrismaError, MissingRequiredValueError
 
-
-class LoginModel(BaseModel):
-    email: str
-    password: str
+from typing import TypedDict
 
 
 class SignOnResponse(BaseModel):
     token: str
 
 
-class RegisterModel(BaseModel):
+class Credentials(BaseModel):
     email: str
     password: str
+
+    def into_signin(self) -> SignInData:
+        return {"email": self.email, "password": self.password}
+
+    def into_signup(self) -> SignUpData:
+        return {"email": self.email, "password": self.password}
+
+
+class UserCreateModel(TypedDict):
+    name: str
+    surname: str
+    username: str
     role: Role
-    data: UserCreateInput
+    gender: Gender
+    location: str
+
+
+class RegisterModel(BaseModel):
+    user_data: UserCreateModel
+    credentials: Credentials
 
 
 class LogoutResponse(BaseModel):
@@ -47,7 +67,6 @@ __all__ = [
     "HTTPException",
     "HTTPStatus",
     "BaseModel",
-    "Session",
     "AuthUser",
     "AuthError",
     "User",
@@ -55,12 +74,14 @@ __all__ = [
     "Importance",
     "PrismaError",
     "CORSMiddleware",
-    "LoginModel",
     "SignOnResponse",
     "RegisterModel",
     "LogoutResponse",
     "UserUpdateInput",
     "PlaceCreateInput",
     "MissingRequiredValueError",
-    "UserCreateInput",
+    "UserCreateWithoutRelationsInput",
+    "Gender",
+    "Credentials",
+    "AuthResponse",
 ]

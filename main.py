@@ -43,69 +43,33 @@ async def shutdown():
 
 
 @app.post("/api/login", tags=["Authentication"])
-async def login(credentials: LoginModel) -> SignOnResponse:
+async def login(credentials: Credentials) -> SignOnResponse:
     """
     Login User and return JWT token
     """
-    session = supabase.auth.sign_in_with_password(
-        { "email": credentials.email, "password": credentials.password }
+    result = await validate_user(
+        credentials=credentials.into_signin(),
+        authenticate=supabase.auth.sign_in_with_password,
+        query=lambda: prisma.user.find_first(where={"email": credentials.email}),
     )
 
-    if not session.user or not session.session:
-        raise HTTPException(
-            status_code=HTTPStatus.HTTP_403_FORBIDDEN,
-            detail=f"Login failed",
-        )
-
-    try:
-        user = await prisma.user.find_first(
-            where={"email": credentials.email},
-        )
-    except PrismaError:
-        raise HTTPException(
-            status_code=HTTPStatus.HTTP_403_FORBIDDEN,
-            detail=f"Login failed",
-        )
-
-    if not user:
-        raise HTTPException(
-            status_code=HTTPStatus.HTTP_403_FORBIDDEN,
-            detail=f"Login failed",
-        )
-
-    token = add_user(session.session.access_token, user)
-
-    return SignOnResponse(token=token)
+    return handle_result(result)
 
 
 @app.post("/api/register", tags=["Authentication"])
-async def register(credentials: RegisterModel) -> SignOnResponse:
+async def register(register_data: RegisterModel) -> SignOnResponse:
     """
     Register User and return JWT token
     """
-    session = supabase.auth.sign_up(
-        {"email": credentials.email, "password": credentials.password}
+    result = await validate_user(
+        credentials=register_data.credentials.into_signup(),
+        authenticate=supabase.auth.sign_up,
+        query=lambda: prisma.user.create(
+            data={**register_data.user_data, "email": register_data.credentials.email},
+        ),
     )
 
-    if not session.session or not session.user:
-        raise HTTPException(
-            status_code=HTTPStatus.HTTP_403_FORBIDDEN,
-            detail=f"Registration failed",
-        )
-
-    try:
-        user = await prisma.user.create(
-            data=credentials.data
-        )
-    except PrismaError as e:
-        raise HTTPException(
-            status_code=HTTPStatus.HTTP_403_FORBIDDEN,
-            detail=f"Registration failed, cannot create user, {e}",
-        )
-
-    token = add_user(session.session.access_token, user)
-
-    return SignOnResponse(token=token)
+    return handle_result(result)
 
 
 @app.post("/api/logout", tags=["Authentication"])
@@ -136,7 +100,7 @@ async def get_user(user_id: str, token: str) -> User:
             status_code=HTTPStatus.HTTP_403_FORBIDDEN,
             detail=f"Invalid JWT token, {e!r}",
         )
-    
+
     if not admin.user or not admin.user.email:
         raise HTTPException(
             status_code=HTTPStatus.HTTP_403_FORBIDDEN,
@@ -168,6 +132,7 @@ async def get_user(user_id: str, token: str) -> User:
         )
 
     return user
+
 
 @app.get("/api/users/new_creators", tags=["User"])
 async def new_creators(token: str) -> list[User]:
